@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User
+from .models import User, CandidateProfile, EmployerProfile
 
 
 @admin.register(User)
@@ -25,3 +25,7 @@ class CustomUserAdmin(UserAdmin):
         "created_at",
         "updated_at",
     )
+
+
+admin.site.register(CandidateProfile)
+admin.site.register(EmployerProfile)

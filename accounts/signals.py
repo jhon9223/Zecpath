@@ -5,10 +5,10 @@ from .models import User, CandidateProfile, EmployerProfile
 
 
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, **kwargs):
 
-    if created:
-        if instance.role == User.CANDIDATE:
-            CandidateProfile.objects.create(user=instance)
-        elif instance.role == User.EMPLOYER:
-            EmployerProfile.objects.create(user=instance)
+    if instance.role == User.CANDIDATE:
+        CandidateProfile.objects.get_or_create(user=instance)
+
+    elif instance.role == User.EMPLOYER:
+        EmployerProfile.objects.get_or_create(user=instance)
