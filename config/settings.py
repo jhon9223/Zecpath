@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "accounts.apps.AccountsConfig",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "profiles",
 ]
 
 MIDDLEWARE = [

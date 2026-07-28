@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
 )
 
 
-from .views import SignupAPIView, LogoutAPIView, ProfileAPIView
+from .views import *
 urlpatterns = [
     # Signup
     path("signup/", SignupAPIView.as_view(), name="signup"),
@@ -20,5 +20,7 @@ urlpatterns = [
     # Profile
     path("profile/", ProfileAPIView.as_view(), name="profile"),
 
-
+    path("employer/dashboard/", EmployerDashboardAPIView.as_view()),
+    path("candidate/dashboard/", CandidateDashboardAPIView.as_view()),
+    path("admin/dashboard/", AdminDashboardAPIView.as_view()),
 ]

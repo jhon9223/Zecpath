@@ -6,4 +6,5 @@ urlpatterns = [
 
     # Accounts APIs
     path("api/accounts/", include("accounts.urls")),
+    path("api/profiles/", include("profiles.urls")),
 ]

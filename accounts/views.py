@@ -1,15 +1,17 @@
 from django.shortcuts import render
-
-# Create your views here.
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from .serializers import SignupSerializer
-
 from rest_framework.permissions import IsAuthenticated
 from .serializers import LogoutSerializer
 from .serializers import ProfileSerializer
+from .permissions import (
+    IsAdmin,
+    IsEmployer,
+    IsCandidate,
+)
+# Create your views here.
 
 
 class SignupAPIView(APIView):
@@ -60,3 +62,25 @@ class ProfileAPIView(APIView):
             serializer.data,
             status=status.HTTP_200_OK
         )
+
+
+class EmployerDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    def get(self, request):
+
+        return Response({"message": "Welcome Employer"})
+
+
+class CandidateDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsCandidate]
+
+    def get(self, request):
+        return Response({"message": "Welcome Candidate"})
+
+
+class AdminDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        return Response({"message": "Welcome Admin"})
