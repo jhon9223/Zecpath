@@ -13,6 +13,7 @@ from .serializers import (
     EmployerProfileSerializer,
 )
 from django.shortcuts import get_object_or_404
+import os
 
 
 class MyProfileAPIView(APIView):
@@ -161,7 +162,8 @@ class ResumeUploadAPIView(APIView):
 
     def post(self, request):
 
-        profile = CandidateProfile.objects.get(
+        profile = get_object_or_404(
+            CandidateProfile,
             user=request.user,
             is_deleted=False
         )
@@ -174,13 +176,38 @@ class ResumeUploadAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # File extension validation
+        allowed_extensions = [".pdf", ".doc", ".docx"]
+
+        extension = os.path.splitext(resume.name)[1].lower()
+
+        if extension not in allowed_extensions:
+            return Response(
+                {"error": "Only PDF, DOC and DOCX files are allowed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # File size validation (2 MB)
+        max_size = 2 * 1024 * 1024
+
+        if resume.size > max_size:
+            return Response(
+                {"error": "Resume size must not exceed 2 MB."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete old resume if it exists
+        if profile.resume:
+            profile.resume.delete(save=False)
+
+        # Save new resume
         profile.resume = resume
         profile.save()
 
         return Response(
             {
                 "message": "Resume uploaded successfully.",
-                "resume": profile.resume.url
+                "resume": profile.resume.url if profile.resume else None
             },
             status=status.HTTP_200_OK
         )
