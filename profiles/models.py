@@ -18,6 +18,11 @@ class CandidateProfile(models.Model):
         null=True,
         blank=True
     )
+    resume = models.FileField(
+        upload_to="resumes/",
+        blank=True,
+        null=True
+    )
 
     is_deleted = models.BooleanField(default=False)
 
