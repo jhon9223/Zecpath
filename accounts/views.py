@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import SignupSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import LogoutSerializer
 from .serializers import ProfileSerializer
 from .permissions import (
@@ -15,9 +15,9 @@ from .permissions import (
 
 
 class SignupAPIView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
-
         serializer = SignupSerializer(data=request.data)
 
         if serializer.is_valid():

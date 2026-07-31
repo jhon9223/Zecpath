@@ -4,6 +4,7 @@ from .views import (
     UpdateProfileAPIView,
     DeleteProfileAPIView,
     ResumeUploadAPIView,
+    CandidateProfileListAPIView
 )
 
 urlpatterns = [
@@ -12,4 +13,6 @@ urlpatterns = [
     path("delete/", DeleteProfileAPIView.as_view(), name="delete-profile"),
     path("delete/", DeleteProfileAPIView.as_view(), name="delete-profile"),
     path("upload-resume/", ResumeUploadAPIView.as_view(), name="upload-resume"),
+    path("candidates/", CandidateProfileListAPIView.as_view(),
+         name="candidate-list",),
 ]

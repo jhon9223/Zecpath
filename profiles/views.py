@@ -15,6 +15,16 @@ from .serializers import (
 from django.shortcuts import get_object_or_404
 import os
 
+# import the pagination class,and use it in the views where you want to paginate the results.,and set the pagination_class attribute to the ProfilePagination class.
+from rest_framework import generics
+from .pagination import ProfilePagination
+from .models import CandidateProfile
+from .serializers import CandidateProfileSerializer
+# import the DjangoFilterBackend and the CandidateProfileFilter class, and use them in the CandidateProfileListAPIView to enable filtering of candidate profiles based on the is_deleted field.
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import CandidateProfileFilter
+from rest_framework.filters import SearchFilter
+
 
 class MyProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -211,3 +221,28 @@ class ResumeUploadAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class CandidateProfileListAPIView(generics.ListAPIView):
+
+    queryset = CandidateProfile.objects.select_related("user")
+
+    serializer_class = CandidateProfileSerializer
+
+    pagination_class = ProfilePagination
+
+    permission_classes = [IsAuthenticated]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+    ]
+
+    filterset_class = CandidateProfileFilter
+
+    search_fields = [
+        "user__username",
+        "skills",
+        "education",
+        "experience",
+    ]
