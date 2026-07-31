@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "profiles",
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -138,6 +139,10 @@ REST_FRAMEWORK = {
     ),
 
     "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",
+
+    "DEFAULT_FILTER_BACKENDS": (
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ),
 }
 
 SIMPLE_JWT = {
