@@ -57,6 +57,28 @@ class MyProfileAPIView(APIView):
 
         return Response(serializer.data)
 
+# use the following when you want refactor the code to use the get_user_profile utility function instead of directly querying the CandidateProfile and EmployerProfile models. This will make the code cleaner and more maintainable.
+# class MyProfileAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+
+#         profile = get_user_profile(request.user)
+
+#         if not profile:
+#             return Response(
+#                 {"error": "Profile not found"},
+#                 status=status.HTTP_404_NOT_FOUND,
+#             )
+
+#         if request.user.role == User.CANDIDATE:
+#             serializer = CandidateProfileSerializer(profile)
+
+#         else:
+#             serializer = EmployerProfileSerializer(profile)
+
+#         return Response(serializer.data)
+
 
 class UpdateProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
