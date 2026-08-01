@@ -24,6 +24,7 @@ from .serializers import CandidateProfileSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import CandidateProfileFilter
 from rest_framework.filters import SearchFilter
+from .utils import get_user_profile
 
 
 class MyProfileAPIView(APIView):
