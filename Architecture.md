@@ -1,0 +1,1 @@
+Client(Postman/frontend)--> Urls --> Views --> Permissions --> Serializers --> Models --> Database -->
