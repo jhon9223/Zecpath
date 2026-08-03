@@ -8,6 +8,8 @@ urlpatterns = [
     # Accounts APIs
     path("api/accounts/", include("accounts.urls")),
     path("api/profiles/", include("profiles.urls")),
+    path("api/jobs/", include("jobs.urls"),),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
