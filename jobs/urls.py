@@ -4,7 +4,10 @@ from .views import (
     CreateJobAPIView,
     UpdateJobAPIView,
     JobStatusAPIView,
-    JobListAPIView
+    JobListAPIView,
+    LatestJobListAPIView,
+    FeaturedJobListAPIView,
+
 
 )
 
@@ -30,6 +33,16 @@ urlpatterns = [
         "",
         JobListAPIView.as_view(),
         name="job-list",
+    ),
+    path(
+        "latest/",
+        LatestJobListAPIView.as_view(),
+        name="latest-jobs",
+    ),
+    path(
+        "featured/",
+        FeaturedJobListAPIView.as_view(),
+        name="featured-jobs",
     ),
 
 ]

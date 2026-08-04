@@ -145,3 +145,19 @@ class JobListAPIView(generics.ListAPIView):
         "skills",
         "location",
     ]  # ?location=Bangalore works because django-filter matches the query parameter name to the field name.?search=Python works because SearchFilter always looks for the search parameter and checks every field you've listed in search_fields.
+
+
+class LatestJobListAPIView(generics.ListAPIView):
+    serializer_class = JobSerializer
+
+    queryset = Job.objects.filter(
+        status=Job.ACTIVE
+    ).select_related("employer").order_by("-created_at")[:10]
+
+
+class FeaturedJobListAPIView(generics.ListAPIView):
+    serializer_class = JobSerializer
+
+    queryset = Job.objects.filter(
+        status=Job.ACTIVE
+    ).select_related("employer").order_by("-created_at")[:5]
