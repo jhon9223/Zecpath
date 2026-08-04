@@ -4,6 +4,8 @@ from .views import (
     CreateJobAPIView,
     UpdateJobAPIView,
     JobStatusAPIView,
+    JobListAPIView
+
 )
 
 urlpatterns = [
@@ -24,4 +26,10 @@ urlpatterns = [
         JobStatusAPIView.as_view(),
         name="job-status",
     ),
+    path(
+        "",
+        JobListAPIView.as_view(),
+        name="job-list",
+    ),
+
 ]

@@ -10,6 +10,12 @@ from .models import Job
 from .serializers import JobSerializer
 
 from profiles.models import EmployerProfile
+from rest_framework import generics
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
+
+from .pagination import JobPagination
+from .filters import JobFilter
 # Create your views here.
 
 
@@ -114,3 +120,28 @@ class JobStatusAPIView(APIView):
         return Response(
             {"message": "Job status updated successfully."}
         )
+
+
+class JobListAPIView(generics.ListAPIView):
+
+    serializer_class = JobSerializer
+
+    queryset = Job.objects.filter(
+        status=Job.ACTIVE
+    ).select_related("employer")
+
+    pagination_class = JobPagination
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+    ]
+
+    filterset_class = JobFilter
+
+    search_fields = [
+        "title",
+        "description",
+        "skills",
+        "location",
+    ]  # ?location=Bangalore works because django-filter matches the query parameter name to the field name.?search=Python works because SearchFilter always looks for the search parameter and checks every field you've listed in search_fields.
