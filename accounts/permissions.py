@@ -10,7 +10,7 @@ class IsAdmin(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and User.ADMIN
+            and request.user.role == User.ADMIN
         )
 
 
@@ -35,5 +35,5 @@ class IsCandidate(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and User.CANDIDATE
+            and request.user.role == User.CANDIDATE
         )
