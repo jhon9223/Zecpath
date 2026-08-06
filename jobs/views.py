@@ -161,3 +161,25 @@ class FeaturedJobListAPIView(generics.ListAPIView):
     queryset = Job.objects.filter(
         status=Job.ACTIVE
     ).select_related("employer").order_by("-created_at")[:5]
+
+# not mentioned in day 19 task created my own...
+
+
+class MyJobsAPIView(generics.ListAPIView):
+
+    serializer_class = JobSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    pagination_class = JobPagination
+
+    def get_queryset(self):
+
+        return Job.objects.filter(
+            employer__user=self.request.user
+        ).select_related(
+            "employer"
+        ).order_by("-created_at")

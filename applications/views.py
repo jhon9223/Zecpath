@@ -14,6 +14,8 @@ from profiles.models import CandidateProfile
 
 from .models import JobApplication
 from .serializers import JobApplicationSerializer
+
+from accounts.permissions import IsEmployer
 # Create your views here.
 
 
@@ -93,3 +95,52 @@ class MyApplicationsAPIView(generics.ListAPIView):
         ).select_related(
             "job"
         ).order_by("-applied_at")
+
+
+class UpdateApplicationStatusAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    def patch(self, request, application_id):
+
+        application = get_object_or_404(
+            JobApplication,
+            id=application_id
+        )
+
+        # Ownership validation
+        if application.job.employer.user != request.user:
+            return Response(
+                {
+                    "error": "You are not allowed to update this application."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        new_status = request.data.get("status")
+
+        valid_statuses = [
+            JobApplication.APPLIED,
+            JobApplication.SHORTLISTED,
+            JobApplication.INTERVIEW,
+            JobApplication.REJECTED,
+            JobApplication.SELECTED,
+        ]
+
+        if new_status not in valid_statuses:
+            return Response(
+                {
+                    "error": "Invalid status."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        application.status = new_status
+        application.save()
+
+        serializer = JobApplicationSerializer(application)
+
+        return Response(serializer.data)

@@ -1,4 +1,5 @@
 from django.db import models
+
 from profiles.models import CandidateProfile
 from jobs.models import Job
 
@@ -6,17 +7,17 @@ from jobs.models import Job
 class JobApplication(models.Model):
 
     APPLIED = "APPLIED"
-    REVIEWING = "REVIEWING"
     SHORTLISTED = "SHORTLISTED"
+    INTERVIEW = "INTERVIEW"
     REJECTED = "REJECTED"
-    HIRED = "HIRED"
+    SELECTED = "SELECTED"
 
     STATUS_CHOICES = [
         (APPLIED, "Applied"),
-        (REVIEWING, "Reviewing"),
         (SHORTLISTED, "Shortlisted"),
+        (INTERVIEW, "Interview Scheduled"),
         (REJECTED, "Rejected"),
-        (HIRED, "Hired"),
+        (SELECTED, "Selected"),
     ]
 
     candidate = models.ForeignKey(
@@ -31,7 +32,9 @@ class JobApplication(models.Model):
         related_name="applications"
     )
 
-    resume = models.FileField(upload_to="applications/")
+    resume = models.FileField(
+        upload_to="applications/"
+    )
 
     status = models.CharField(
         max_length=20,
@@ -39,10 +42,16 @@ class JobApplication(models.Model):
         default=APPLIED
     )
 
-    applied_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
 
     class Meta:
         unique_together = ("candidate", "job")
 
     def __str__(self):
-        return f"{self.candidate} -> {self.job}"
+        return f"{self.candidate.user.username} - {self.job.title}"
