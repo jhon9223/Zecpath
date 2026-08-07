@@ -4,6 +4,8 @@ from .views import (
     ApplyJobAPIView,
     MyApplicationsAPIView,
     UpdateApplicationStatusAPIView,
+    JobApplicationsAPIView,
+    JobAnalyticsAPIView,
 )
 
 urlpatterns = [
@@ -23,6 +25,17 @@ urlpatterns = [
         "<int:application_id>/status/",
         UpdateApplicationStatusAPIView.as_view(),
         name="update-application-status",
+    ),
+    path(
+        "job/<int:job_id>/applications/",
+        JobApplicationsAPIView.as_view(),
+        name="job-applications",
+    ),
+
+    path(
+        "job/<int:job_id>/analytics/",
+        JobAnalyticsAPIView.as_view(),
+        name="job-analytics",
     ),
 
 ]

@@ -133,7 +133,7 @@ class JobListAPIView(generics.ListAPIView):
     pagination_class = JobPagination
 
     filter_backends = [
-        DjangoFilterBackend,
+        DjangoFilterBackend,  # just keep as as format/syntax if you use django filte only add DjangoFilterBackend and search_filter if search filter only
         SearchFilter,
     ]
 

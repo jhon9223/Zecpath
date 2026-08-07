@@ -16,6 +16,8 @@ from .models import JobApplication
 from .serializers import JobApplicationSerializer
 
 from accounts.permissions import IsEmployer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
 # Create your views here.
 
 
@@ -144,3 +146,81 @@ class UpdateApplicationStatusAPIView(APIView):
         serializer = JobApplicationSerializer(application)
 
         return Response(serializer.data)
+
+
+class JobApplicationsAPIView(generics.ListAPIView):
+
+    serializer_class = JobApplicationSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+    ]
+
+    filterset_fields = [
+        "status",
+    ]
+
+    search_fields = [
+        "candidate__user__username",
+    ]
+
+    def get_queryset(self):
+
+        job = get_object_or_404(
+            Job,
+            id=self.kwargs["job_id"],
+            employer__user=self.request.user
+        )
+
+        return JobApplication.objects.filter(  # here response because its using inbuilt generics class
+            job=job
+        ).select_related(
+            "candidate__user",
+            "job"
+        ).order_by("-applied_at")
+
+
+class JobAnalyticsAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    def get(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
+
+        applications = JobApplication.objects.filter(job=job)
+
+        return Response({
+
+            "total_applications": applications.count(),
+
+            "shortlisted": applications.filter(
+                status=JobApplication.SHORTLISTED
+            ).count(),
+
+            "interview": applications.filter(
+                status=JobApplication.INTERVIEW
+            ).count(),
+
+            "selected": applications.filter(
+                status=JobApplication.SELECTED
+            ).count(),
+
+            "rejected": applications.filter(
+                status=JobApplication.REJECTED
+            ).count(),
+
+        })
