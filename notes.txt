@@ -69,4 +69,4 @@ select_related("employer")
 ListAPIView serializes them
        ↓
 Response
-fofr personaluse
+
