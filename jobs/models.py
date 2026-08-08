@@ -1,5 +1,5 @@
 from django.db import models
-from profiles.models import EmployerProfile
+from profiles.models import EmployerProfile, CandidateProfile
 
 
 class Job(models.Model):
@@ -70,3 +70,26 @@ class Job(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class SavedJob(models.Model):
+
+    candidate = models.ForeignKey(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        related_name="saved_jobs"
+    )
+
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="saved_by"
+    )
+
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("candidate", "job")
+
+    def __str__(self):
+        return f"{self.candidate.user.username} - {self.job.title}"

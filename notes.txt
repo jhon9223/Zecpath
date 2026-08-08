@@ -1,0 +1,71 @@
+LIST API
+│
+├── serializer_class → What format should the objects become?
+│
+├── queryset OR get_queryset() → What objects should I retrieve?
+│
+├── permission_classes → Who is allowed?
+│
+├── filter_backends → What filtering/search mechanisms?
+│
+├── filterset_class/fields → What can be filtered?
+│
+├── search_fields → What can be searched?
+│
+└── pagination_class → How many per page?
+
+
+filterset_fields is used for simple field-based filtering, while filterset_class is used when we need a custom FilterSet with advanced filtering logic."
+                 get_or_create()
+                       │
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Check database   │
+              └─────────────────┘
+                    /       \
+                  YES        NO
+                   │          │
+                   ▼          ▼
+               Get old     Create new
+                object       object
+                   │          │
+                   └────┬─────┘
+                        │
+                        ▼
+              ┌─────────────────────┐
+              │ 2 values come back  │
+              └─────────────────────┘
+                    │          │
+                    ▼          ▼
+               SavedJob      created
+                 object       True/False
+
+Logged-in candidate
+       ↓
+Get candidate profile
+       ↓
+Get candidate skills
+       ↓
+Convert skills into a clean list
+       ↓
+Get active jobs
+       ↓
+For each job:
+       ↓
+   Convert job skills into a clean list
+       ↓
+   Check whether ANY candidate skill
+   exists in job skills
+       ↓
+   If yes → append job.id
+       ↓
+matching_jobs = [1, 4, 7]
+       ↓
+Find Jobs whose IDs are in [1, 4, 7]
+       ↓
+select_related("employer")
+       ↓
+ListAPIView serializes them
+       ↓
+Response

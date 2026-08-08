@@ -11,6 +11,10 @@ from .permissions import (
     IsEmployer,
     IsCandidate,
 )
+from django.shortcuts import get_object_or_404
+
+from profiles.models import CandidateProfile
+from applications.models import JobApplication
 # Create your views here.
 
 
@@ -73,10 +77,43 @@ class EmployerDashboardAPIView(APIView):
 
 
 class CandidateDashboardAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsCandidate]
+
+    permission_classes = [
+        IsAuthenticated,
+        IsCandidate
+    ]
 
     def get(self, request):
-        return Response({"message": "Welcome Candidate"})
+
+        candidate = get_object_or_404(
+            CandidateProfile,
+            user=request.user,
+            is_deleted=False
+        )
+
+        applications = JobApplication.objects.filter(
+            candidate=candidate
+        )
+
+        return Response({
+            "applied_jobs": applications.count(),
+
+            "shortlisted": applications.filter(
+                status=JobApplication.SHORTLISTED
+            ).count(),
+
+            "interviews": applications.filter(
+                status=JobApplication.INTERVIEW
+            ).count(),
+
+            "selected": applications.filter(
+                status=JobApplication.SELECTED
+            ).count(),
+
+            "rejected": applications.filter(
+                status=JobApplication.REJECTED
+            ).count(),
+        })
 
 
 class AdminDashboardAPIView(APIView):

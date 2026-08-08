@@ -162,7 +162,7 @@ class JobApplicationsAPIView(generics.ListAPIView):
         SearchFilter,
     ]
 
-    filterset_fields = [
+    filterset_fields = [  # Simple filtering → filterset_fields,Custom filtering → filterset_class
         "status",
     ]
 
@@ -170,6 +170,7 @@ class JobApplicationsAPIView(generics.ListAPIView):
         "candidate__user__username",
     ]
 
+    # Dynamic / depends on user, URL, permissions, etc.:
     def get_queryset(self):
 
         job = get_object_or_404(

@@ -3,19 +3,21 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from accounts.permissions import IsEmployer
+from accounts.permissions import IsEmployer, IsCandidate
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Job
 from .serializers import JobSerializer
 
-from profiles.models import EmployerProfile
+from profiles.models import EmployerProfile, CandidateProfile
 from rest_framework import generics
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 
 from .pagination import JobPagination
 from .filters import JobFilter
+from django.shortcuts import get_object_or_404
+from .models import Job, SavedJob
 # Create your views here.
 
 
@@ -126,7 +128,7 @@ class JobListAPIView(generics.ListAPIView):
 
     serializer_class = JobSerializer
 
-    queryset = Job.objects.filter(
+    queryset = Job.objects.filter(  # Static / same basic data for everyone:
         status=Job.ACTIVE
     ).select_related("employer")
 
@@ -137,7 +139,7 @@ class JobListAPIView(generics.ListAPIView):
         SearchFilter,
     ]
 
-    filterset_class = JobFilter
+    filterset_class = JobFilter  # Custom filtering → filterset_class
 
     search_fields = [
         "title",
@@ -176,6 +178,7 @@ class MyJobsAPIView(generics.ListAPIView):
 
     pagination_class = JobPagination
 
+    # Dynamic / depends on user, URL, permissions, etc.:
     def get_queryset(self):
 
         return Job.objects.filter(
@@ -183,3 +186,109 @@ class MyJobsAPIView(generics.ListAPIView):
         ).select_related(
             "employer"
         ).order_by("-created_at")
+
+
+class SaveJobAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsCandidate
+    ]
+
+    def post(self, request, job_id):
+
+        candidate = get_object_or_404(
+            CandidateProfile,
+            user=request.user,
+            is_deleted=False
+        )
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            status=Job.ACTIVE
+        )
+
+        saved_job, created = SavedJob.objects.get_or_create(  # saved_job → the object that was found or created,created   → True or False
+            candidate=candidate,
+            job=job
+        )
+
+        if not created:
+            return Response(
+                {"message": "Job already saved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"message": "Job saved successfully."},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class MySavedJobsAPIView(generics.ListAPIView):
+
+    serializer_class = JobSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsCandidate
+    ]
+
+    def get_queryset(self):
+
+        return Job.objects.filter(
+            saved_by__candidate__user=self.request.user,
+            status=Job.ACTIVE
+        ).select_related(
+            "employer"
+        ).order_by("-created_at")
+
+
+class RecommendedJobsAPIView(generics.ListAPIView):
+
+    serializer_class = JobSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsCandidate
+    ]
+
+    def get_queryset(self):
+
+        candidate = get_object_or_404(
+            CandidateProfile,
+            user=self.request.user,
+            is_deleted=False
+        )
+
+        if not candidate.skills:
+            return Job.objects.none()
+
+        jobs = Job.objects.filter(
+            status=Job.ACTIVE
+        ).select_related("employer")
+
+        candidate_skills = [
+            skill.strip().lower()
+            for skill in candidate.skills.split(",")
+        ]
+
+        matching_jobs = []
+
+        for job in jobs:
+
+            job_skills = [
+                skill.strip().lower()
+                for skill in job.skills.split(",")
+            ]
+
+            if any(
+                skill in job_skills
+                for skill in candidate_skills
+            ):
+                matching_jobs.append(job.id)
+
+        return Job.objects.filter(
+            id__in=matching_jobs
+        ).select_related("employer")

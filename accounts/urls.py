@@ -23,4 +23,6 @@ urlpatterns = [
     path("employer/dashboard/", EmployerDashboardAPIView.as_view()),
     path("candidate/dashboard/", CandidateDashboardAPIView.as_view()),
     path("admin/dashboard/", AdminDashboardAPIView.as_view()),
+    path("candidate-dashboard/", CandidateDashboardAPIView.as_view(),
+         name="candidate-dashboard")
 ]
