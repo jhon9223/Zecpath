@@ -11,6 +11,7 @@ from .views import (
     SaveJobAPIView,
     MySavedJobsAPIView,
     RecommendedJobsAPIView,
+    AdminManageJobAPIView,
 
 
 
@@ -69,6 +70,11 @@ urlpatterns = [
         "recommended/",
         RecommendedJobsAPIView.as_view(),
         name="recommended-jobs",
+    ),
+    path(
+        "admin/jobs/<int:job_id>/remove/",
+        AdminManageJobAPIView.as_view(),
+        name="admin-remove-job",
     ),
 
 ]

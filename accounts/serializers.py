@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
-from .models import User
+from .models import *
 
 
 class SignupSerializer(serializers.ModelSerializer):
@@ -40,4 +40,27 @@ class ProfileSerializer(serializers.ModelSerializer):
             "role",
             "is_verified",
             "created_at",
+        ]
+
+
+class AdminActionLogSerializer(serializers.ModelSerializer):
+
+    admin_username = serializers.CharField(
+        source="admin.username",
+        read_only=True
+    )
+
+    target_username = serializers.CharField(
+        source="target_user.username",
+        read_only=True
+    )
+
+    class Meta:
+        model = AdminActionLog
+        fields = [
+            "id",
+            "admin_username",
+            "action",
+            "target_username",
+            "created_at"
         ]

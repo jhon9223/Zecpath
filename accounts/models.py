@@ -24,3 +24,27 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class AdminActionLog(models.Model):
+
+    admin = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="admin_actions"
+    )
+
+    action = models.CharField(max_length=100)
+
+    target_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_action_targets"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.admin.username} - {self.action}"

@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from accounts.permissions import IsEmployer, IsCandidate
+from accounts.permissions import IsEmployer, IsCandidate, IsAdmin
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Job
@@ -292,3 +292,25 @@ class RecommendedJobsAPIView(generics.ListAPIView):
         return Job.objects.filter(
             id__in=matching_jobs
         ).select_related("employer")
+
+
+class AdminManageJobAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def patch(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id
+        )
+
+        job.status = Job.INACTIVE
+        job.save(update_fields=["status"])
+
+        return Response({
+            "message": "Job removed successfully."
+        })

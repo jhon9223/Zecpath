@@ -69,4 +69,15 @@ select_related("employer")
 ListAPIView serializes them
        ↓
 Response
-
+day22
+Admin
+  ↓
+Approve Employer API
+  ↓
+is_verified = True
+  ↓
+AdminActionLog created
+  ↓
+admin = current admin
+action = APPROVED_EMPLOYER
+target_user = approved employer
