@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from .services import extract_resume_text, clean_resume_text
+from .services import extract_resume_text, clean_resume_text, parse_resume
 
 
 class ResumeParseAPIView(APIView):
@@ -23,10 +23,11 @@ class ResumeParseAPIView(APIView):
             text = extract_resume_text(file)
 
             cleaned_text = clean_resume_text(text)
-
+            parsed_data = parse_resume(cleaned_text)
             return Response({
                 "filename": file.name,
-                "text": cleaned_text
+                "text": cleaned_text,
+                "parsed_data": parsed_data
             })
 
         except ValueError as e:
