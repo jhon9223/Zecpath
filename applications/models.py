@@ -35,7 +35,12 @@ class JobApplication(models.Model):
     resume = models.FileField(
         upload_to="applications/"
     )
-
+    ats_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,

@@ -6,6 +6,9 @@ from .views import (
     UpdateApplicationStatusAPIView,
     JobApplicationsAPIView,
     JobAnalyticsAPIView,
+    ApplicationATSScoreAPIView,
+    RankedCandidatesAPIView,
+
 )
 
 urlpatterns = [
@@ -37,5 +40,14 @@ urlpatterns = [
         JobAnalyticsAPIView.as_view(),
         name="job-analytics",
     ),
-
+    path(
+        "<int:application_id>/ats-score/",
+        ApplicationATSScoreAPIView.as_view(),
+        name="application-ats-score"
+    ),
+    path(
+        "job/<int:job_id>/ranked-candidates/",
+        RankedCandidatesAPIView.as_view(),
+        name="ranked-candidates"
+    ),
 ]

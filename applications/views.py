@@ -18,6 +18,7 @@ from .serializers import JobApplicationSerializer
 from accounts.permissions import IsEmployer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from .services import calculate_application_ats_score
 # Create your views here.
 
 
@@ -225,3 +226,54 @@ class JobAnalyticsAPIView(APIView):
             ).count(),
 
         })
+
+
+class ApplicationATSScoreAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, application_id):
+
+        try:
+            application = JobApplication.objects.select_related(
+                "job",
+                "candidate"
+            ).get(id=application_id)
+
+        except JobApplication.DoesNotExist:
+            return Response(
+                {"error": "Application not found."},
+                status=404
+            )
+
+        result = calculate_application_ats_score(application)
+        application.ats_score = result["score"]
+        application.save(update_fields=["ats_score"])
+        return Response(result)
+
+
+class RankedCandidatesAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, job_id):
+
+        applications = JobApplication.objects.filter(
+            job_id=job_id
+        ).select_related(
+            "candidate",
+            # So Django uses double underscore __ to traverse relationships.
+            "candidate__user"
+        ).order_by("-ats_score")
+
+        data = []
+
+        for application in applications:
+            data.append({
+                "application_id": application.id,
+                "candidate": application.candidate.user.username,
+                "ats_score": application.ats_score,
+                "status": application.status,
+            })
+
+        return Response(data)

@@ -39,7 +39,10 @@ class Job(models.Model):
     )
 
     experience = models.CharField(max_length=100)
-
+    education = models.CharField(
+        max_length=200,
+        blank=True
+    )
     salary_min = models.DecimalField(
         max_digits=10,
         decimal_places=2
