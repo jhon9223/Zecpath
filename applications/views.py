@@ -19,6 +19,7 @@ from accounts.permissions import IsEmployer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from .services import calculate_application_ats_score
+from .automation import auto_process_application, auto_process_job_applications
 # Create your views here.
 
 
@@ -277,3 +278,45 @@ class RankedCandidatesAPIView(APIView):
             })
 
         return Response(data)
+
+
+class AutoProcessApplicationAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, application_id):
+
+        application = get_object_or_404(
+            JobApplication,
+            id=application_id
+        )
+
+        if application.ats_score is None:
+            return Response(
+                {"error": "ATS score is not available."},
+                status=400
+            )
+
+        auto_process_application(application)
+
+        return Response({
+            "message": "Application processed successfully.",
+            "application_id": application.id,
+            "ats_score": application.ats_score,
+            "status": application.status
+        })
+
+
+class AutoProcessJobAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, job_id):
+
+        processed = auto_process_job_applications(job_id)
+
+        return Response({
+            "message": "Applications processed successfully.",
+            "job_id": job_id,
+            "processed": processed
+        })
