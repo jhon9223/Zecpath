@@ -20,6 +20,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from .services import calculate_application_ats_score
 from .automation import auto_process_application, auto_process_job_applications
+from .tasks import process_job_applications
 # Create your views here.
 
 
@@ -306,17 +307,33 @@ class AutoProcessApplicationAPIView(APIView):
             "status": application.status
         })
 
+# without celery
+# class AutoProcessJobAPIView(APIView):
 
+#     permission_classes = [IsAuthenticated]
+
+#     def patch(self, request, job_id):
+
+#         processed = auto_process_job_applications(job_id)
+
+#         return Response({
+#             "message": "Applications processed successfully.",
+#             "job_id": job_id,
+#             "processed": processed
+#         })
+
+
+# with celerey
 class AutoProcessJobAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, job_id):
 
-        processed = auto_process_job_applications(job_id)
+        task = process_job_applications.delay(job_id)
 
         return Response({
-            "message": "Applications processed successfully.",
+            "message": "Application processing started.",
             "job_id": job_id,
-            "processed": processed
+            "task_id": task.id
         })
