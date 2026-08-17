@@ -21,6 +21,7 @@ from rest_framework.filters import SearchFilter
 from .services import calculate_application_ats_score
 from .automation import auto_process_application, auto_process_job_applications
 from .tasks import process_job_applications
+from notifications.events import *
 # Create your views here.
 
 
@@ -63,10 +64,12 @@ class ApplyJobAPIView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save(
+            application = serializer.save(
                 candidate=candidate,
                 job=job
             )
+
+            notify_application_submitted(application)
 
             return Response(
                 serializer.data,
@@ -143,8 +146,22 @@ class UpdateApplicationStatusAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        old_status = application.status
+
         application.status = new_status
         application.save()
+
+        if (
+            new_status == JobApplication.SHORTLISTED
+            and old_status != JobApplication.SHORTLISTED
+        ):
+            notify_application_shortlisted(application)
+
+        elif (
+            new_status == JobApplication.REJECTED
+            and old_status != JobApplication.REJECTED
+        ):
+            notify_application_rejected(application)
 
         serializer = JobApplicationSerializer(application)
 
