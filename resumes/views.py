@@ -1,13 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import IsEmployer, IsCandidate
 
 from .services import extract_resume_text, clean_resume_text, parse_resume
 
 
 class ResumeParseAPIView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsEmployer | IsCandidate]
 
     def post(self, request):
 

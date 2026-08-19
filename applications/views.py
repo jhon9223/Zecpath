@@ -22,6 +22,7 @@ from .services import calculate_application_ats_score
 from .automation import auto_process_application, auto_process_job_applications
 from .tasks import process_job_applications
 from notifications.events import *
+from accounts.models import User
 # Create your views here.
 
 
@@ -199,7 +200,7 @@ class JobApplicationsAPIView(generics.ListAPIView):
             employer__user=self.request.user
         )
 
-        return JobApplication.objects.filter(  # here response because its using inbuilt generics class
+        return JobApplication.objects.filter(  # here return because its using inbuilt generics class
             job=job
         ).select_related(
             "candidate__user",
@@ -253,32 +254,73 @@ class ApplicationATSScoreAPIView(APIView):
 
     def get(self, request, application_id):
 
-        try:
-            application = JobApplication.objects.select_related(
+        application = get_object_or_404(
+            JobApplication.objects.select_related(
                 "job",
                 "candidate"
-            ).get(id=application_id)
+            ),
+            id=application_id
+        )
 
-        except JobApplication.DoesNotExist:
+        # Candidate can access only their own application.
+        if request.user.role == User.CANDIDATE:
+
+            if application.candidate.user != request.user:
+                return Response(
+                    {
+                        "error": "You are not allowed to access this application."
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # Employer can access only applications for their own jobs.
+        elif request.user.role == User.EMPLOYER:
+
+            if application.job.employer.user != request.user:
+                return Response(
+                    {
+                        "error": "You are not allowed to access this application."
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # Other roles are not allowed.
+        else:
             return Response(
-                {"error": "Application not found."},
-                status=404
+                {
+                    "error": "You are not allowed to access ATS scores."
+                },
+                status=status.HTTP_403_FORBIDDEN
             )
 
         result = calculate_application_ats_score(application)
+
         application.ats_score = result["score"]
-        application.save(update_fields=["ats_score"])
+
+        application.save(
+            update_fields=["ats_score"]
+        )
+
         return Response(result)
 
 
 class RankedCandidatesAPIView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
 
     def get(self, request, job_id):
 
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
+
         applications = JobApplication.objects.filter(
-            job_id=job_id
+            job=job
         ).select_related(
             "candidate",
             # So Django uses double underscore __ to traverse relationships.
@@ -298,15 +340,16 @@ class RankedCandidatesAPIView(APIView):
         return Response(data)
 
 
-class AutoProcessApplicationAPIView(APIView):
+class AutoProcessApplicationAPIView(APIView):  # for application
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsEmployer]
 
     def patch(self, request, application_id):
 
         application = get_object_or_404(
             JobApplication,
-            id=application_id
+            id=application_id,
+            job__employer__user=request.user
         )
 
         if application.ats_score is None:
@@ -343,10 +386,14 @@ class AutoProcessApplicationAPIView(APIView):
 # with celerey
 class AutoProcessJobAPIView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsEmployer]
 
     def patch(self, request, job_id):
-
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
         task = process_job_applications.delay(job_id)
 
         return Response({
