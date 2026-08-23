@@ -18,10 +18,9 @@ from .serializers import JobApplicationSerializer
 from accounts.permissions import IsEmployer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
-from .services import calculate_application_ats_score
+from .services import calculate_application_ats_score, update_application_status
 from .automation import auto_process_application, auto_process_job_applications
 from .tasks import process_job_applications
-from notifications.events import *
 from accounts.models import User
 # Create your views here.
 
@@ -147,22 +146,10 @@ class UpdateApplicationStatusAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        old_status = application.status
-
-        application.status = new_status
-        application.save()
-
-        if (
-            new_status == JobApplication.SHORTLISTED
-            and old_status != JobApplication.SHORTLISTED
-        ):
-            notify_application_shortlisted(application)
-
-        elif (
-            new_status == JobApplication.REJECTED
-            and old_status != JobApplication.REJECTED
-        ):
-            notify_application_rejected(application)
+        update_application_status(
+            application,
+            new_status
+        )
 
         serializer = JobApplicationSerializer(application)
 

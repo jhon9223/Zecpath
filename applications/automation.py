@@ -1,4 +1,5 @@
 from .models import JobApplication
+from .services import update_application_status
 SHORTLIST_THRESHOLD = 70
 REJECT_THRESHOLD = 40
 
@@ -24,8 +25,10 @@ def auto_process_application(application):
     if status is None:
         return application
 
-    application.status = status
-    application.save(update_fields=["status"])
+    update_application_status(
+        application,
+        status
+    )
 
     return application
 

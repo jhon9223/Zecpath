@@ -1,3 +1,8 @@
+from .models import JobApplication
+from notifications.events import (
+    notify_application_shortlisted,
+    notify_application_rejected,
+)
 from resumes.services import (
     extract_resume_text,
     clean_resume_text,
@@ -129,3 +134,24 @@ def calculate_application_ats_score(application):
         "education_score": round(education_score, 2),
         "resume_data": resume_data,
     }
+
+
+def update_application_status(application, new_status):
+    old_status = application.status
+
+    application.status = new_status
+    application.save(update_fields=["status"])
+
+    if (
+        new_status == JobApplication.SHORTLISTED
+        and old_status != JobApplication.SHORTLISTED
+    ):
+        notify_application_shortlisted(application)
+
+    elif (
+        new_status == JobApplication.REJECTED
+        and old_status != JobApplication.REJECTED
+    ):
+        notify_application_rejected(application)
+
+    return application
