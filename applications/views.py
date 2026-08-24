@@ -22,6 +22,7 @@ from .services import calculate_application_ats_score, update_application_status
 from .automation import auto_process_application, auto_process_job_applications
 from .tasks import process_job_applications
 from accounts.models import User
+from notifications.events import notify_application_submitted
 # Create your views here.
 
 
