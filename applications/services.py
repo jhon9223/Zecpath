@@ -1,13 +1,19 @@
 from .models import JobApplication
+
 from notifications.events import (
     notify_application_shortlisted,
     notify_application_rejected,
 )
+
 from resumes.services import (
     extract_resume_text,
     clean_resume_text,
     parse_resume,
 )
+
+from .call_service import create_ai_call
+
+
 SKILL_WEIGHT = 60
 EXPERIENCE_WEIGHT = 25
 EDUCATION_WEIGHT = 15
@@ -137,16 +143,22 @@ def calculate_application_ats_score(application):
 
 
 def update_application_status(application, new_status):
+
     old_status = application.status
 
     application.status = new_status
-    application.save(update_fields=["status"])
+
+    application.save(
+        update_fields=["status"]
+    )
 
     if (
         new_status == JobApplication.SHORTLISTED
         and old_status != JobApplication.SHORTLISTED
     ):
         notify_application_shortlisted(application)
+
+        create_ai_call(application)
 
     elif (
         new_status == JobApplication.REJECTED
