@@ -4,8 +4,8 @@ from django.utils import timezone
 
 from jobs.models import Job
 
-from .models import JobApplication, AICall
-
+from .models import AICall
+from applications.models import JobApplication
 
 CALL_START = time(8, 0)
 CALL_END = time(20, 0)

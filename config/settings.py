@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "applications",
     "resumes",
     "notifications",
+    "ai_interviews"
 ]
 
 MIDDLEWARE = [

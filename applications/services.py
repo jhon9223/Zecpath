@@ -11,7 +11,7 @@ from resumes.services import (
     parse_resume,
 )
 
-from .call_service import create_ai_call
+from ai_interviews.call_service import create_ai_call
 
 
 SKILL_WEIGHT = 60
