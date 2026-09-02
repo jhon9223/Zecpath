@@ -78,6 +78,15 @@ class AIInterviewSession(models.Model):
         blank=True
     )
 
+    current_question_order = models.PositiveIntegerField(
+        default=0
+    )
+
+    status = models.CharField(
+        max_length=20,
+        default="ACTIVE"
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True
     )
@@ -166,3 +175,72 @@ class CallLog(models.Model):
 
     def __str__(self):
         return f"{self.event} - Call {self.call.id}"
+
+
+class QuestionTemplate(models.Model):
+
+    INTRODUCTION = "INTRODUCTION"
+    EXPERIENCE = "EXPERIENCE"
+    SKILLS = "SKILLS"
+    AVAILABILITY = "AVAILABILITY"
+    SALARY = "SALARY"
+
+    CATEGORY_CHOICES = [
+        (INTRODUCTION, "Introduction"),
+        (EXPERIENCE, "Experience"),
+        (SKILLS, "Skills"),
+        (AVAILABILITY, "Availability"),
+        (SALARY, "Salary"),
+    ]
+
+    question = models.TextField()
+
+    category = models.CharField(
+        max_length=30,
+        choices=CATEGORY_CHOICES
+    )
+
+    follow_up_question = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    follow_up_keywords = models.JSONField(
+        default=list,
+        blank=True
+    )
+
+    is_active = models.BooleanField(
+        default=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.category} - {self.question[:50]}"
+
+
+class JobQuestion(models.Model):
+
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="ai_questions"
+    )
+
+    question_template = models.ForeignKey(
+        QuestionTemplate,
+        on_delete=models.CASCADE,
+        related_name="job_questions"
+    )
+
+    question_order = models.PositiveIntegerField()
+
+    is_active = models.BooleanField(
+        default=True
+    )
+
+    def __str__(self):
+        return f"Job {self.job.id} - Question {self.question_order}"
