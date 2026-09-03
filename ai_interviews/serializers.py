@@ -1,11 +1,38 @@
-from rest_framework import serializers
-
 from .models import (
     AIInterviewSession,
     AIQuestion,
     AIAnswer,
     CallLog,
+    AIAnswerEvaluation
 )
+from rest_framework import serializers
+
+
+class AIAnswerEvaluationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AIAnswerEvaluation
+        fields = [
+            "id",
+            "answer",
+            "relevance_score",
+            "completeness_score",
+            "keyword_score",
+            "final_score",
+            "confidence",
+            "ai_annotation",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "relevance_score",
+            "completeness_score",
+            "keyword_score",
+            "final_score",
+            "confidence",
+            "ai_annotation",
+            "created_at",
+        ]
 
 
 class AIAnswerSerializer(serializers.ModelSerializer):
@@ -64,4 +91,31 @@ class AIInterviewSessionSerializer(serializers.ModelSerializer):
             "questions",
             "created_at",
             "updated_at",
+        ]
+
+
+class AIAnswerEvaluationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AIAnswerEvaluation
+        fields = [
+            "id",
+            "answer",
+            "relevance_score",
+            "completeness_score",
+            "keyword_score",
+            "final_score",
+            "confidence",
+            "ai_annotation",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "relevance_score",
+            "completeness_score",
+            "keyword_score",
+            "final_score",
+            "confidence",
+            "ai_annotation",
+            "created_at",
         ]

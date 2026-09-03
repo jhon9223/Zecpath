@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -7,10 +8,12 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.permissions import IsEmployer
 from jobs.models import Job
 
-from .models import AICall
+from .models import AICall, AIAnswer, AIQuestion
+from .services.evaluation_service import AnswerEvaluationService
 from .serializers import (
     AIInterviewSessionSerializer,
     CallLogSerializer,
+    AIAnswerEvaluationSerializer,
 )
 
 
@@ -84,3 +87,101 @@ class AIInterviewAuditAPIView(APIView):
             ).count(),
             "calls": data,
         })
+
+
+class AIAnswerEvaluationAPIView(APIView):
+
+    def post(self, request):
+
+        question_id = request.data.get("question_id")
+        answer_text = request.data.get("answer")
+
+        if not question_id or not answer_text:
+            return Response(
+                {
+                    "error": "question_id and answer are required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            question = AIQuestion.objects.select_related(
+                "session__call__application__job"
+            ).get(
+                id=question_id
+            )
+        except AIQuestion.DoesNotExist:
+            return Response(
+                {
+                    "error": "Question not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        answer, created = AIAnswer.objects.update_or_create(
+            question=question,
+            defaults={
+                "answer": answer_text,
+                "transcript": answer_text,
+            }
+        )
+
+        job = question.session.call.application.job
+
+        job_question = get_object_or_404(
+            question.session.call.application.job.ai_questions,
+            question_order=question.question_order
+        )
+
+        keywords = job_question.question_template.follow_up_keywords
+
+        evaluation_service = AnswerEvaluationService()
+
+        evaluation = evaluation_service.evaluate_answer(
+            answer,
+            keywords
+        )
+
+        serializer = AIAnswerEvaluationSerializer(
+            evaluation
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class AIAnswerEvaluationDetailAPIView(APIView):
+
+    def get(self, request, answer_id):
+
+        try:
+            answer = AIAnswer.objects.select_related(
+                "evaluation"
+            ).get(
+                id=answer_id
+            )
+        except AIAnswer.DoesNotExist:
+            return Response(
+                {
+                    "error": "Answer not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not hasattr(answer, "evaluation"):
+            return Response(
+                {
+                    "error": "Evaluation not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = AIAnswerEvaluationSerializer(
+            answer.evaluation
+        )
+
+        return Response(
+            serializer.data
+        )

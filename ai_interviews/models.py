@@ -244,3 +244,33 @@ class JobQuestion(models.Model):
 
     def __str__(self):
         return f"Job {self.job.id} - Question {self.question_order}"
+
+
+class AIAnswerEvaluation(models.Model):
+    answer = models.OneToOneField(
+        AIAnswer,
+        on_delete=models.CASCADE,
+        related_name="evaluation"
+    )
+
+    relevance_score = models.FloatField(default=0)
+    completeness_score = models.FloatField(default=0)
+    keyword_score = models.FloatField(default=0)
+
+    final_score = models.FloatField(default=0)
+
+    confidence = models.FloatField(
+        null=True,
+        blank=True
+    )
+
+    ai_annotation = models.TextField(
+        blank=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"Evaluation for Answer {self.answer.id}"
