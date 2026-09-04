@@ -7,9 +7,18 @@ from rest_framework.permissions import IsAuthenticated
 
 from accounts.permissions import IsEmployer
 from jobs.models import Job
+from .tasks import send_interview_confirmation
 
-from .models import AICall, AIAnswer, AIQuestion
+from .models import (
+    AICall,
+    AIAnswer,
+    AIQuestion,
+    AvailabilitySlot,
+)
+
 from .services.evaluation_service import AnswerEvaluationService
+from .services.scheduling_engine import SchedulingEngine
+
 from .serializers import (
     AIInterviewSessionSerializer,
     CallLogSerializer,
@@ -91,6 +100,11 @@ class AIInterviewAuditAPIView(APIView):
 
 class AIAnswerEvaluationAPIView(APIView):
 
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
     def post(self, request):
 
         question_id = request.data.get("question_id")
@@ -104,19 +118,15 @@ class AIAnswerEvaluationAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            question = AIQuestion.objects.select_related(
-                "session__call__application__job"
-            ).get(
-                id=question_id
-            )
-        except AIQuestion.DoesNotExist:
-            return Response(
-                {
-                    "error": "Question not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
+        question = get_object_or_404(
+            AIQuestion.objects.select_related(
+                "session__call__application__job__employer__user"
+            ),
+            id=question_id,
+            session__call__application__job__employer__user=request.user
+        )
+
+        job = question.session.call.application.job
 
         answer, created = AIAnswer.objects.update_or_create(
             question=question,
@@ -126,10 +136,8 @@ class AIAnswerEvaluationAPIView(APIView):
             }
         )
 
-        job = question.session.call.application.job
-
         job_question = get_object_or_404(
-            question.session.call.application.job.ai_questions,
+            job.ai_questions,
             question_order=question.question_order
         )
 
@@ -154,21 +162,21 @@ class AIAnswerEvaluationAPIView(APIView):
 
 class AIAnswerEvaluationDetailAPIView(APIView):
 
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
     def get(self, request, answer_id):
 
-        try:
-            answer = AIAnswer.objects.select_related(
-                "evaluation"
-            ).get(
-                id=answer_id
-            )
-        except AIAnswer.DoesNotExist:
-            return Response(
-                {
-                    "error": "Answer not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
+        answer = get_object_or_404(
+            AIAnswer.objects.select_related(
+                "evaluation",
+                "question__session__call__application__job__employer__user"
+            ),
+            id=answer_id,
+            question__session__call__application__job__employer__user=request.user
+        )
 
         if not hasattr(answer, "evaluation"):
             return Response(
@@ -184,4 +192,108 @@ class AIAnswerEvaluationDetailAPIView(APIView):
 
         return Response(
             serializer.data
+        )
+
+
+class AvailableSlotsAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    def get(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
+
+        scheduling_engine = SchedulingEngine()
+
+        slots = scheduling_engine.get_available_slots(job)
+
+        data = [
+            {
+                "id": slot.id,
+                "start_time": slot.start_time,
+                "end_time": slot.end_time,
+            }
+            for slot in slots
+        ]
+
+        return Response(data)
+
+
+class InterviewScheduleAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    def post(self, request):
+
+        call_id = request.data.get("call_id")
+        slot_id = request.data.get("slot_id")
+
+        if not call_id or not slot_id:
+            return Response(
+                {
+                    "error": "call_id and slot_id are required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        call = get_object_or_404(
+            AICall.objects.select_related(
+                "application__job__employer__user"
+            ),
+            id=call_id,
+            application__job__employer__user=request.user
+        )
+
+        if hasattr(call, "schedule"):
+            return Response(
+                {
+                    "error": "This interview is already scheduled."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        slot = get_object_or_404(
+            AvailabilitySlot,
+            id=slot_id,
+            job=call.application.job
+        )
+
+        scheduling_engine = SchedulingEngine()
+
+        schedule, error = scheduling_engine.schedule_interview(
+            call,
+            slot
+        )
+
+        if error:
+            return Response(
+                {
+                    "error": error
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        send_interview_confirmation.delay(schedule.id)
+
+        return Response(
+            {
+                "message": "Interview scheduled successfully.",
+                "schedule_id": schedule.id,
+                "call_id": call.id,
+                "slot_id": slot.id,
+                "scheduled_start": schedule.scheduled_start,
+                "scheduled_end": schedule.scheduled_end,
+                "status": schedule.status,
+            },
+            status=status.HTTP_201_CREATED
         )

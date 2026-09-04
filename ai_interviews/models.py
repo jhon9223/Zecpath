@@ -274,3 +274,81 @@ class AIAnswerEvaluation(models.Model):
 
     def __str__(self):
         return f"Evaluation for Answer {self.answer.id}"
+
+
+class AvailabilitySlot(models.Model):
+
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="availability_slots"
+    )
+
+    start_time = models.DateTimeField()
+
+    end_time = models.DateTimeField()
+
+    is_available = models.BooleanField(
+        default=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.job.title} - {self.start_time}"
+
+
+class InterviewSchedule(models.Model):
+
+    SCHEDULED = "SCHEDULED"
+    CONFIRMED = "CONFIRMED"
+    RESCHEDULED = "RESCHEDULED"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
+
+    STATUS_CHOICES = [
+        (SCHEDULED, "Scheduled"),
+        (CONFIRMED, "Confirmed"),
+        (RESCHEDULED, "Rescheduled"),
+        (CANCELLED, "Cancelled"),
+        (COMPLETED, "Completed"),
+    ]
+
+    call = models.OneToOneField(
+        AICall,
+        on_delete=models.CASCADE,
+        related_name="schedule"
+    )
+
+    availability_slot = models.OneToOneField(
+        AvailabilitySlot,
+        on_delete=models.CASCADE,
+        related_name="schedule"
+    )
+
+    scheduled_start = models.DateTimeField()
+
+    scheduled_end = models.DateTimeField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=SCHEDULED
+    )
+
+    confirmation_sent = models.BooleanField(
+        default=False
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    def __str__(self):
+        return f"Interview Schedule - Call {self.call.id}"
