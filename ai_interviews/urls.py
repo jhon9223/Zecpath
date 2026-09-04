@@ -4,6 +4,8 @@ from .views import (
     AIInterviewAuditAPIView,
     AIAnswerEvaluationAPIView,
     AIAnswerEvaluationDetailAPIView,
+    AvailableSlotsAPIView,
+    InterviewScheduleAPIView,
 )
 
 
@@ -22,5 +24,17 @@ urlpatterns = [
         "answers/<int:answer_id>/evaluation/",
         AIAnswerEvaluationDetailAPIView.as_view(),
         name="ai-answer-evaluation-detail",
+    ),
+
+    path(
+        "jobs/<int:job_id>/slots/",
+        AvailableSlotsAPIView.as_view(),
+        name="available-slots"
+    ),
+
+    path(
+        "schedule/",
+        InterviewScheduleAPIView.as_view(),
+        name="interview-schedule"
     ),
 ]
