@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     "applications",
     "resumes",
     "notifications",
-    "ai_interviews"
+    "ai_interviews",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -184,3 +185,10 @@ TWILIO_API_KEY = os.getenv("TWILIO_API_KEY")
 TWILIO_API_SECRET = os.getenv("TWILIO_API_SECRET")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 TWILIO_VOICE_TEMPLATE_URL = os.getenv("TWILIO_VOICE_TEMPLATE_URL")
+
+CELERY_BEAT_SCHEDULE = {
+    "scan-ai-interview-reminders-every-minute": {
+        "task": "ai_interviews.tasks.scan_due_reminders",
+        "schedule": 60.0,
+    },
+}

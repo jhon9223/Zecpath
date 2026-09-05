@@ -352,3 +352,90 @@ class InterviewSchedule(models.Model):
 
     def __str__(self):
         return f"Interview Schedule - Call {self.call.id}"
+
+
+class ReminderRule(models.Model):
+
+    FIRST_REMINDER = "FIRST_REMINDER"
+    SECOND_REMINDER = "SECOND_REMINDER"
+    FINAL_REMINDER = "FINAL_REMINDER"
+
+    REMINDER_TYPE_CHOICES = [
+        (FIRST_REMINDER, "First Reminder"),
+        (SECOND_REMINDER, "Second Reminder"),
+        (FINAL_REMINDER, "Final Reminder"),
+    ]
+
+    name = models.CharField(
+        max_length=100
+    )
+
+    reminder_type = models.CharField(
+        max_length=30,
+        choices=REMINDER_TYPE_CHOICES
+    )
+
+    minutes_before = models.PositiveIntegerField()
+
+    is_active = models.BooleanField(
+        default=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.name} - {self.minutes_before} minutes"
+
+
+class ReminderLog(models.Model):
+
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
+
+    STATUS_CHOICES = [
+        (PENDING, "Pending"),
+        (SENT, "Sent"),
+        (FAILED, "Failed"),
+    ]
+
+    schedule = models.ForeignKey(
+        InterviewSchedule,
+        on_delete=models.CASCADE,
+        related_name="reminder_logs"
+    )
+
+    reminder_rule = models.ForeignKey(
+        ReminderRule,
+        on_delete=models.CASCADE,
+        related_name="reminder_logs"
+    )
+
+    scheduled_for = models.DateTimeField()
+
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING
+    )
+
+    error = models.TextField(
+        blank=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return (
+            f"{self.reminder_rule.name} - "
+            f"Schedule {self.schedule.id}"
+        )

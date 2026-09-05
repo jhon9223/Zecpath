@@ -8,12 +8,13 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.permissions import IsEmployer
 from jobs.models import Job
 from .tasks import send_interview_confirmation
-
+from .services.reminder_engine import ReminderEngine
 from .models import (
     AICall,
     AIAnswer,
     AIQuestion,
     AvailabilitySlot,
+    ReminderLog,
 )
 
 from .services.evaluation_service import AnswerEvaluationService
@@ -283,8 +284,9 @@ class InterviewScheduleAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        reminder_engine = ReminderEngine()
+        reminder_engine.create_reminders(schedule)
         send_interview_confirmation.delay(schedule.id)
-
         return Response(
             {
                 "message": "Interview scheduled successfully.",
@@ -297,3 +299,60 @@ class InterviewScheduleAPIView(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+class InterviewReminderListAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer
+    ]
+
+    def get(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
+
+        reminders = ReminderLog.objects.filter(
+            schedule__call__application__job=job
+        ).select_related(
+            "schedule",
+            "reminder_rule",
+        ).order_by(
+            "scheduled_for"
+        )
+
+        data = []
+
+        for reminder in reminders:
+
+            data.append({
+                "id": reminder.id,
+                "schedule_id": reminder.schedule.id,
+                "reminder_type": reminder.reminder_rule.reminder_type,
+                "reminder_name": reminder.reminder_rule.name,
+                "minutes_before": reminder.reminder_rule.minutes_before,
+                "scheduled_for": reminder.scheduled_for,
+                "status": reminder.status,
+                "sent_at": reminder.sent_at,
+                "error": reminder.error,
+            })
+
+        return Response({
+            "job_id": job.id,
+            "job_title": job.title,
+            "total_reminders": reminders.count(),
+            "pending_reminders": reminders.filter(
+                status=ReminderLog.PENDING
+            ).count(),
+            "sent_reminders": reminders.filter(
+                status=ReminderLog.SENT
+            ).count(),
+            "failed_reminders": reminders.filter(
+                status=ReminderLog.FAILED
+            ).count(),
+            "reminders": data,
+        })
