@@ -1,3 +1,4 @@
+from .models import AICandidateReport
 from .models import (
     AIInterviewSession,
     AIQuestion,
@@ -118,4 +119,22 @@ class AIAnswerEvaluationSerializer(serializers.ModelSerializer):
             "confidence",
             "ai_annotation",
             "created_at",
+        ]
+
+
+class AICandidateReportSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AICandidateReport
+        fields = [
+            "id",
+            "application",
+            "ats_score",
+            "ai_call_score",
+            "overall_score",
+            "summary",
+            "strengths",
+            "risks",
+            "created_at",
+            "updated_at",
         ]

@@ -15,15 +15,19 @@ from .models import (
     AIQuestion,
     AvailabilitySlot,
     ReminderLog,
+    AICandidateReport,
 )
-
+from applications.models import JobApplication
 from .services.evaluation_service import AnswerEvaluationService
 from .services.scheduling_engine import SchedulingEngine
-
+from .models import AICandidateReport
+from .serializers import AICandidateReportSerializer
+from .services.candidate_report_service import CandidateReportService
 from .serializers import (
     AIInterviewSessionSerializer,
     CallLogSerializer,
     AIAnswerEvaluationSerializer,
+    AICandidateReportSerializer,
 )
 
 
@@ -356,3 +360,48 @@ class InterviewReminderListAPIView(APIView):
             ).count(),
             "reminders": data,
         })
+
+
+class AICandidateReportAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+    ]
+
+    def post(self, request, application_id):
+
+        application = get_object_or_404(
+            JobApplication.objects.select_related(
+                "job__employer__user"
+            ),
+            id=application_id,
+            job__employer__user=request.user,
+        )
+
+        service = CandidateReportService()
+        report = service.generate_report(application)
+
+        serializer = AICandidateReportSerializer(report)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+    def get(self, request, application_id):
+
+        application = get_object_or_404(
+            JobApplication,
+            id=application_id,
+            job__employer__user=request.user,
+        )
+
+        report = get_object_or_404(
+            AICandidateReport,
+            application=application,
+        )
+
+        serializer = AICandidateReportSerializer(report)
+
+        return Response(serializer.data)

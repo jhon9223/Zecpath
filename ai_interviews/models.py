@@ -439,3 +439,25 @@ class ReminderLog(models.Model):
             f"{self.reminder_rule.name} - "
             f"Schedule {self.schedule.id}"
         )
+
+
+class AICandidateReport(models.Model):
+    application = models.OneToOneField(
+        "applications.JobApplication",
+        on_delete=models.CASCADE,
+        related_name="ai_report",
+    )
+
+    ats_score = models.FloatField(default=0)
+    ai_call_score = models.FloatField(default=0)
+    overall_score = models.FloatField(default=0)
+
+    summary = models.TextField(blank=True)
+    strengths = models.JSONField(default=list)
+    risks = models.JSONField(default=list)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AI Report - Application {self.application.id}"
