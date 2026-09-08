@@ -1,5 +1,4 @@
 from .models import JobApplication
-
 from notifications.events import (
     notify_application_shortlisted,
     notify_application_rejected,
@@ -167,3 +166,125 @@ def update_application_status(application, new_status):
         notify_application_rejected(application)
 
     return application
+
+
+class RecruiterAnalyticsService:
+
+    def get_job_funnel(self, job):
+        applications = JobApplication.objects.filter(
+            job=job
+        )
+
+        applied = applications.count()
+
+        shortlisted = applications.filter(
+            status__in=[
+                JobApplication.SHORTLISTED,
+                JobApplication.INTERVIEW,
+                JobApplication.SELECTED,
+            ]
+        ).count()
+
+        interviewed = applications.filter(
+            status__in=[
+                JobApplication.INTERVIEW,
+                JobApplication.SELECTED,
+            ]
+        ).count()
+
+        selected = applications.filter(
+            status=JobApplication.SELECTED
+        ).count()
+
+        def percentage(value, base):
+            if not base:
+                return 0
+
+            return round(
+                (value / base) * 100,
+                2
+            )
+
+        return {
+            "job_id": job.id,
+            "job_title": job.title,
+            "funnel": {
+                "applied": applied,
+                "shortlisted": shortlisted,
+                "interviewed": interviewed,
+                "selected": selected,
+            },
+            "conversion_rates": {
+                "applied_to_shortlisted": percentage(
+                    shortlisted,
+                    applied
+                ),
+                "shortlisted_to_interviewed": percentage(
+                    interviewed,
+                    shortlisted
+                ),
+                "interviewed_to_selected": percentage(
+                    selected,
+                    interviewed
+                ),
+                "applied_to_selected": percentage(
+                    selected,
+                    applied
+                ),
+            },
+        }
+
+    def get_recruiter_overview(self, jobs):
+        total_applications = 0
+        total_shortlisted = 0
+        total_interviewed = 0
+        total_selected = 0
+
+        job_metrics = []
+
+        for job in jobs:
+            data = self.get_job_funnel(job)
+
+            funnel = data["funnel"]
+
+            total_applications += funnel["applied"]
+            total_shortlisted += funnel["shortlisted"]
+            total_interviewed += funnel["interviewed"]
+            total_selected += funnel["selected"]
+
+            job_metrics.append(data)
+
+        def percentage(value, base):
+            if not base:
+                return 0
+
+            return round(
+                (value / base) * 100,
+                2
+            )
+
+        return {
+            "total_applications": total_applications,
+            "total_shortlisted": total_shortlisted,
+            "total_interviewed": total_interviewed,
+            "total_selected": total_selected,
+            "conversion_rates": {
+                "applied_to_shortlisted": percentage(
+                    total_shortlisted,
+                    total_applications
+                ),
+                "shortlisted_to_interviewed": percentage(
+                    total_interviewed,
+                    total_shortlisted
+                ),
+                "interviewed_to_selected": percentage(
+                    total_selected,
+                    total_interviewed
+                ),
+                "applied_to_selected": percentage(
+                    total_selected,
+                    total_applications
+                ),
+            },
+            "jobs": job_metrics,
+        }

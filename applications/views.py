@@ -23,6 +23,7 @@ from .automation import auto_process_application, auto_process_job_applications
 from .tasks import process_job_applications
 from accounts.models import User
 from notifications.events import notify_application_submitted
+from .services import RecruiterAnalyticsService
 # Create your views here.
 
 
@@ -389,3 +390,45 @@ class AutoProcessJobAPIView(APIView):
             "job_id": job_id,
             "task_id": task.id
         })
+
+
+class RecruiterJobAnalyticsAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+    ]
+
+    def get(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user,
+        )
+
+        analytics_service = RecruiterAnalyticsService()
+
+        data = analytics_service.get_job_funnel(job)
+
+        return Response(data)
+
+
+class RecruiterAnalyticsAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+    ]
+
+    def get(self, request):
+
+        jobs = Job.objects.filter(
+            employer__user=request.user
+        )
+
+        analytics_service = RecruiterAnalyticsService()
+
+        data = analytics_service.get_recruiter_overview(jobs)
+
+        return Response(data)
