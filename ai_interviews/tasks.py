@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .models import AICall, InterviewSchedule, ReminderLog
 from .services.reminder_engine import ReminderEngine
+from audit.services import AuditLogService
 
 
 @shared_task(
@@ -50,7 +51,16 @@ def process_ai_call(self, call_id):
                 "updated_at"
             ]
         )
-
+        AuditLogService.log(
+            user=call.application.candidate.user,
+            action="AI_CALL_COMPLETED",
+            resource_type="AICall",
+            resource_id=call.id,
+            details={
+                "application_id": call.application.id,
+                "attempts": call.attempts,
+            },
+        )
         return sid
 
     except Exception as exc:
@@ -65,6 +75,19 @@ def process_ai_call(self, call_id):
                 "updated_at"
             ]
         )
+
+        if self.request.retries >= self.max_retries:
+            AuditLogService.log(
+                user=call.application.candidate.user,
+                action="AI_CALL_FAILED",
+                resource_type="AICall",
+                resource_id=call.id,
+                details={
+                    "application_id": call.application.id,
+                    "error": str(exc),
+                    "attempts": call.attempts,
+                },
+            )
 
         raise
 

@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "notifications",
     "ai_interviews",
     "django_celery_beat",
+    "audit",
 ]
 
 MIDDLEWARE = [
@@ -190,5 +191,41 @@ CELERY_BEAT_SCHEDULE = {
     "scan-ai-interview-reminders-every-minute": {
         "task": "ai_interviews.tasks.scan_due_reminders",
         "schedule": 60.0,
+    },
+}
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "ai_interviews": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "applications": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }

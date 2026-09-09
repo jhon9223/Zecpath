@@ -11,6 +11,7 @@ from resumes.services import (
 )
 
 from ai_interviews.call_service import create_ai_call
+from audit.services import AuditLogService
 
 
 SKILL_WEIGHT = 60
@@ -149,6 +150,17 @@ def update_application_status(application, new_status):
 
     application.save(
         update_fields=["status"]
+    )
+
+    AuditLogService.log(
+        user=application.candidate.user,
+        action="APPLICATION_STATUS_UPDATED",
+        resource_type="JobApplication",
+        resource_id=application.id,
+        details={
+            "old_status": old_status,
+            "new_status": new_status,
+        },
     )
 
     if (
