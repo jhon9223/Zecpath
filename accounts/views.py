@@ -18,7 +18,17 @@ from profiles.models import CandidateProfile
 from applications.models import JobApplication
 from jobs.models import Job
 from rest_framework import generics
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework_simplejwt.views import TokenObtainPairView
 # Create your views here.
+
+
+class LoginThrottle(AnonRateThrottle):
+    scope = "login"
+
+
+class LoginAPIView(TokenObtainPairView):
+    throttle_classes = [LoginThrottle]
 
 
 class SignupAPIView(APIView):
