@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "ai_interviews",
     "django_celery_beat",
     "audit",
+    "subscriptions",
 ]
 
 MIDDLEWARE = [
