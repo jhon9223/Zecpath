@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "audit",
     "subscriptions",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -242,3 +243,8 @@ LOGGING = {
         },
     },
 }
+
+
+RAZORPAY_KEY_ID = ""
+RAZORPAY_KEY_SECRET = ""
+RAZORPAY_WEBHOOK_SECRET = "test_webhook_secret"
