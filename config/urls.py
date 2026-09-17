@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/ai-interviews/", include("ai_interviews.urls")),
     path("api/audit/", include("audit.urls"),),
     path("api/payments/", include("payments.urls")),
+    path("api/subscriptions/", include("subscriptions.urls")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
