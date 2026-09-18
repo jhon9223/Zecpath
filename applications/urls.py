@@ -12,6 +12,8 @@ from .views import (
     AutoProcessJobAPIView,
     RecruiterJobAnalyticsAPIView,
     RecruiterAnalyticsAPIView,
+    PremiumRecruiterAnalyticsAPIView,
+    PremiumCandidateRankingAPIView,
 
 )
 
@@ -73,5 +75,16 @@ urlpatterns = [
         "analytics/",
         RecruiterAnalyticsAPIView.as_view(),
         name="recruiter-analytics",
+    ),
+    path(
+        "premium-analytics/",
+        PremiumRecruiterAnalyticsAPIView.as_view(),
+        name="premium-recruiter-analytics",
+    ),
+
+    path(
+        "jobs/<int:job_id>/premium-ranking/",
+        PremiumCandidateRankingAPIView.as_view(),
+        name="premium-candidate-ranking",
     ),
 ]

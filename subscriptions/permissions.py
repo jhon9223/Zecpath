@@ -30,3 +30,31 @@ class UnlimitedCandidateAccessPermission(BasePermission):
             request.user,
             "unlimited_candidates",
         )
+
+
+class AdvancedAnalyticsPermission(BasePermission):
+    message = "Advanced analytics require an active paid subscription."
+
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and getattr(request.user, "role", None) == "EMPLOYER"
+            and SubscriptionService.has_feature(
+                request.user,
+                "advanced_analytics",
+            )
+        )
+
+
+class PremiumRecruiterPermission(BasePermission):
+    message = "Premium recruiter features require an active paid subscription."
+
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and getattr(request.user, "role", None) == "EMPLOYER"
+            and SubscriptionService.has_feature(
+                request.user,
+                "premium_ai_reports",
+            )
+        )

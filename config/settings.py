@@ -156,12 +156,14 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ),
 
     "DEFAULT_THROTTLE_RATES": {
         "anon": "20/minute",
         "user": "100/minute",
         "login": "5/minute",
+        "premium_feature": "30/minute",
     },
 }
 

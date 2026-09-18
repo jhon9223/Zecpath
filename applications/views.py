@@ -24,6 +24,9 @@ from .tasks import process_job_applications
 from accounts.models import User
 from notifications.events import notify_application_submitted
 from .services import RecruiterAnalyticsService
+# from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import ScopedRateThrottle
+from subscriptions.permissions import AdvancedAnalyticsPermission, PremiumRecruiterPermission
 # Create your views here.
 
 
@@ -432,3 +435,79 @@ class RecruiterAnalyticsAPIView(APIView):
         data = analytics_service.get_recruiter_overview(jobs)
 
         return Response(data)
+
+
+class PremiumRecruiterAnalyticsAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+        AdvancedAnalyticsPermission,
+    ]
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "premium_feature"
+
+    def get(self, request):
+
+        jobs = Job.objects.filter(
+            employer__user=request.user
+        )
+
+        analytics_service = RecruiterAnalyticsService()
+
+        data = analytics_service.get_recruiter_overview(jobs)
+
+        return Response({
+            "premium": True,
+            "total_applications": data["total_applications"],
+            "total_shortlisted": data["total_shortlisted"],
+            "total_interviewed": data["total_interviewed"],
+            "total_selected": data["total_selected"],
+            "conversion_rates": data["conversion_rates"],
+            "jobs": data["jobs"],
+        })
+
+
+class PremiumCandidateRankingAPIView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+        PremiumRecruiterPermission,
+    ]
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "premium_feature"
+
+    def get(self, request, job_id):
+
+        job = get_object_or_404(
+            Job,
+            id=job_id,
+            employer__user=request.user
+        )
+
+        applications = JobApplication.objects.filter(
+            job=job
+        ).select_related(
+            "candidate",
+            "candidate__user"
+        ).order_by("-ats_score")
+
+        data = []
+
+        for application in applications:
+            data.append({
+                "application_id": application.id,
+                "candidate": application.candidate.user.username,
+                "ats_score": application.ats_score,
+                "status": application.status,
+            })
+
+        return Response({
+            "premium": True,
+            "job_id": job.id,
+            "job_title": job.title,
+            "ranked_candidates": data,
+        })
