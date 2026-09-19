@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/audit/", include("audit.urls"),),
     path("api/payments/", include("payments.urls")),
     path("api/subscriptions/", include("subscriptions.urls")),
+    path("api/admin/billing/", include("subscriptions.admin_billing_urls"),),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
