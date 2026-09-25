@@ -55,8 +55,14 @@ class JobApplication(models.Model):
         auto_now=True
     )
 
-    class Meta:
-        unique_together = ("candidate", "job")
+
+class Meta:
+    unique_together = ("candidate", "job")
+    indexes = [
+        models.Index(fields=["job", "-applied_at"]),
+        models.Index(fields=["job", "status"]),
+        models.Index(fields=["job", "-ats_score"]),
+    ]
 
     def __str__(self):
         return f"{self.candidate.user.username} - {self.job.title}"

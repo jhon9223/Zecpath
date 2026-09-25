@@ -71,6 +71,13 @@ class Job(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_featured = models.BooleanField(default=False)
 
+
+class Meta:
+    indexes = [
+        models.Index(fields=["status", "-created_at"]),
+        models.Index(fields=["employer", "status"]),
+    ]
+
     def __str__(self):
         return self.title
 
