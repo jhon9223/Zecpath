@@ -1,4 +1,5 @@
-from rest_framework import generics
+
+from rest_framework import generics, serializers
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 
@@ -27,7 +28,72 @@ from .services import RecruiterAnalyticsService
 # from rest_framework.throttling import UserRateThrottle
 from rest_framework.throttling import ScopedRateThrottle
 from subscriptions.permissions import AdvancedAnalyticsPermission, PremiumRecruiterPermission
+
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+
 # Create your views here.
+
+
+# Swagger documentation serializers
+class ApplicationStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[
+            JobApplication.APPLIED,
+            JobApplication.SHORTLISTED,
+            JobApplication.INTERVIEW,
+            JobApplication.REJECTED,
+            JobApplication.SELECTED,
+        ]
+    )
+
+
+class JobAnalyticsResponseSerializer(serializers.Serializer):
+    total_applications = serializers.IntegerField()
+    shortlisted = serializers.IntegerField()
+    interview = serializers.IntegerField()
+    selected = serializers.IntegerField()
+    rejected = serializers.IntegerField()
+
+
+class RankedCandidateSerializer(serializers.Serializer):
+    application_id = serializers.IntegerField()
+    candidate = serializers.CharField()
+    ats_score = serializers.FloatField(allow_null=True)
+    status = serializers.CharField()
+
+
+class AutoProcessApplicationResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    application_id = serializers.IntegerField()
+    ats_score = serializers.FloatField()
+    status = serializers.CharField()
+
+
+class AutoProcessJobResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    job_id = serializers.IntegerField()
+    task_id = serializers.CharField()
+
+
+class PremiumCandidateRankingResponseSerializer(serializers.Serializer):
+    premium = serializers.BooleanField()
+    job_id = serializers.IntegerField()
+    job_title = serializers.CharField()
+    ranked_candidates = RankedCandidateSerializer(many=True)
+
+
+class PremiumRecruiterAnalyticsResponseSerializer(serializers.Serializer):
+    premium = serializers.BooleanField()
+    total_applications = serializers.IntegerField()
+    total_shortlisted = serializers.IntegerField()
+    total_interviewed = serializers.IntegerField()
+    total_selected = serializers.IntegerField()
+    conversion_rates = serializers.DictField()
+    jobs = serializers.ListField()
+
+
+class ApplicationErrorResponseSerializer(serializers.Serializer):
+    error = serializers.CharField()
 
 
 class ApplyJobAPIView(APIView):
@@ -37,6 +103,27 @@ class ApplyJobAPIView(APIView):
         IsCandidate
     ]
 
+    @extend_schema(
+        summary="Apply for a job",
+        description=(
+            "Submit an application for an active job. "
+            "Duplicate applications are rejected."
+        ),
+        request=JobApplicationSerializer,
+        responses={
+            201: JobApplicationSerializer,
+            400: OpenApiResponse(
+                response=ApplicationErrorResponseSerializer,
+                description="Duplicate application or invalid application data.",
+            ),
+            403: OpenApiResponse(
+                description="Permission denied."
+            ),
+            404: OpenApiResponse(
+                description="Candidate profile or active job not found."
+            ),
+        },
+    )
     def post(self, request, job_id):
 
         candidate = get_object_or_404(
@@ -96,7 +183,21 @@ class MyApplicationsAPIView(generics.ListAPIView):
         IsCandidate
     ]
 
+    @extend_schema(
+        summary="List my applications",
+        description="Retrieve the authenticated candidate's job applications.",
+        responses={
+            200: JobApplicationSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied."),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
+
+        if getattr(self, "swagger_fake_view", False):
+            return JobApplication.objects.none()
 
         candidate = CandidateProfile.objects.get(
             user=self.request.user,
@@ -117,6 +218,23 @@ class UpdateApplicationStatusAPIView(APIView):
         IsEmployer
     ]
 
+    @extend_schema(
+        summary="Update application status",
+        description="Update an application's status for a job owned by the authenticated employer.",
+        request=ApplicationStatusUpdateSerializer,
+        responses={
+            200: JobApplicationSerializer,
+            400: OpenApiResponse(
+                response=ApplicationErrorResponseSerializer,
+                description="Invalid application status.",
+            ),
+            403: OpenApiResponse(
+                response=ApplicationErrorResponseSerializer,
+                description="You do not own this job or are not authorized.",
+            ),
+            404: OpenApiResponse(description="Application not found."),
+        },
+    )
     def patch(self, request, application_id):
 
         application = get_object_or_404(
@@ -183,8 +301,23 @@ class JobApplicationsAPIView(generics.ListAPIView):
         "candidate__user__username",
     ]
 
+    @extend_schema(
+        summary="List applications for a job",
+        description="List applications for an employer-owned job. Supports status filtering and candidate username search.",
+        responses={
+            200: JobApplicationSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     # Dynamic / depends on user, URL, permissions, etc.:
     def get_queryset(self):
+
+        if getattr(self, "swagger_fake_view", False):
+            return JobApplication.objects.none()
 
         job = get_object_or_404(
             Job,
@@ -207,6 +340,15 @@ class JobAnalyticsAPIView(APIView):
         IsEmployer
     ]
 
+    @extend_schema(
+        summary="Get job application analytics",
+        description="Retrieve application counts for an employer-owned job.",
+        responses={
+            200: JobAnalyticsResponseSerializer,
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
@@ -244,6 +386,20 @@ class ApplicationATSScoreAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Calculate application ATS score",
+        description="Calculate and save the ATS score after checking candidate or employer ownership.",
+        responses={
+            200: OpenApiResponse(
+                description="ATS score and scoring details.",
+            ),
+            403: OpenApiResponse(
+                response=ApplicationErrorResponseSerializer,
+                description="Access denied.",
+            ),
+            404: OpenApiResponse(description="Application not found."),
+        },
+    )
     def get(self, request, application_id):
 
         application = get_object_or_404(
@@ -303,6 +459,15 @@ class RankedCandidatesAPIView(APIView):
         IsEmployer
     ]
 
+    @extend_schema(
+        summary="Rank candidates for a job",
+        description="Retrieve candidates ranked by their ATS scores for an employer-owned job.",
+        responses={
+            200: RankedCandidateSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
@@ -336,6 +501,20 @@ class AutoProcessApplicationAPIView(APIView):  # for application
 
     permission_classes = [IsAuthenticated, IsEmployer]
 
+    @extend_schema(
+        summary="Automatically process an application",
+        description="Run the application auto-processing logic using its existing ATS score.",
+        request=None,
+        responses={
+            200: AutoProcessApplicationResponseSerializer,
+            400: OpenApiResponse(
+                response=ApplicationErrorResponseSerializer,
+                description="ATS score is not available.",
+            ),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Application not found."),
+        },
+    )
     def patch(self, request, application_id):
 
         application = get_object_or_404(
@@ -359,6 +538,7 @@ class AutoProcessApplicationAPIView(APIView):  # for application
             "status": application.status
         })
 
+
 # without celery
 # class AutoProcessJobAPIView(APIView):
 
@@ -380,6 +560,16 @@ class AutoProcessJobAPIView(APIView):
 
     permission_classes = [IsAuthenticated, IsEmployer]
 
+    @extend_schema(
+        summary="Start automatic job application processing",
+        description="Queue background processing for applications belonging to an employer-owned job.",
+        request=None,
+        responses={
+            200: AutoProcessJobResponseSerializer,
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
     def patch(self, request, job_id):
         job = get_object_or_404(
             Job,
@@ -402,6 +592,15 @@ class RecruiterJobAnalyticsAPIView(APIView):
         IsEmployer,
     ]
 
+    @extend_schema(
+        summary="Get recruiter analytics for a job",
+        description="Retrieve funnel analytics for a job owned by the authenticated employer.",
+        responses={
+            200: OpenApiResponse(description="Job-level recruiter funnel analytics."),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
@@ -424,6 +623,14 @@ class RecruiterAnalyticsAPIView(APIView):
         IsEmployer,
     ]
 
+    @extend_schema(
+        summary="Get recruiter analytics overview",
+        description="Retrieve overall recruitment funnel analytics for the authenticated employer.",
+        responses={
+            200: OpenApiResponse(description="Recruiter overview analytics."),
+            403: OpenApiResponse(description="Permission denied."),
+        },
+    )
     def get(self, request):
 
         jobs = Job.objects.filter(
@@ -448,6 +655,14 @@ class PremiumRecruiterAnalyticsAPIView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "premium_feature"
 
+    @extend_schema(
+        summary="Get premium recruiter analytics",
+        description="Retrieve premium recruitment analytics, including conversion rates and job-level metrics.",
+        responses={
+            200: PremiumRecruiterAnalyticsResponseSerializer,
+            403: OpenApiResponse(description="Permission denied or premium access required."),
+        },
+    )
     def get(self, request):
 
         jobs = Job.objects.filter(
@@ -480,6 +695,15 @@ class PremiumCandidateRankingAPIView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "premium_feature"
 
+    @extend_schema(
+        summary="Get premium candidate rankings",
+        description="Retrieve ATS-ranked candidates for an employer-owned job with premium recruiter access.",
+        responses={
+            200: PremiumCandidateRankingResponseSerializer,
+            403: OpenApiResponse(description="Permission denied or premium access required."),
+            404: OpenApiResponse(description="Job not found."),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(

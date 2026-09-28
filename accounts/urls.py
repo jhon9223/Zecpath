@@ -2,31 +2,48 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     # TokenObtainPairView,
     TokenRefreshView,
-
 )
 
-
 from .views import *
+
 urlpatterns = [
     # Signup
     path("signup/", SignupAPIView.as_view(), name="signup"),
 
     # Login (Generate Access & Refresh Token)
     path(
-        "login/", LoginAPIView.as_view(), name="token_obtain_pair",),
+        "login/",
+        LoginAPIView.as_view(),
+        name="token_obtain_pair",
+    ),
 
     # Refresh Access Token
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
     # Logout (Blacklist Refresh Token)
     path("logout/", LogoutAPIView.as_view(), name="logout"),
+
     # Profile
     path("profile/", ProfileAPIView.as_view(), name="profile"),
 
     path("employer/dashboard/", EmployerDashboardAPIView.as_view()),
-    path("candidate/dashboard/", CandidateDashboardAPIView.as_view()),
+
+    # Candidate dashboard
+    path(
+        "candidate/dashboard/",
+        CandidateDashboardAPIView.as_view(),
+        name="candidate-dashboard-nested",
+    ),
+
     path("admin/dashboard/", AdminDashboardAPIView.as_view()),
-    path("candidate-dashboard/", CandidateDashboardAPIView.as_view(),
-         name="candidate-dashboard"),
+
+    # Legacy candidate dashboard URL
+    path(
+        "candidate-dashboard/",
+        LegacyCandidateDashboardAPIView.as_view(),
+        name="candidate-dashboard",
+    ),
+
     path(
         "admin/employers/<int:user_id>/approve/",
         ApproveEmployerAPIView.as_view(),
@@ -47,5 +64,4 @@ urlpatterns = [
         AdminAuditLogAPIView.as_view(),
         name="admin-audit-logs",
     ),
-
 ]

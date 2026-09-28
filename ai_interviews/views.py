@@ -1,14 +1,27 @@
+
 from django.shortcuts import get_object_or_404
 
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiResponse,
+    inline_serializer,
+)
+
 from accounts.permissions import IsEmployer
 from jobs.models import Job
+from applications.models import JobApplication
+
 from .tasks import send_interview_confirmation
 from .services.reminder_engine import ReminderEngine
+from .services.evaluation_service import AnswerEvaluationService
+from .services.scheduling_engine import SchedulingEngine
+from .services.candidate_report_service import CandidateReportService
+
 from .models import (
     AICall,
     AIAnswer,
@@ -17,12 +30,7 @@ from .models import (
     ReminderLog,
     AICandidateReport,
 )
-from applications.models import JobApplication
-from .services.evaluation_service import AnswerEvaluationService
-from .services.scheduling_engine import SchedulingEngine
-from .models import AICandidateReport
-from .serializers import AICandidateReportSerializer
-from .services.candidate_report_service import CandidateReportService
+
 from .serializers import (
     AIInterviewSessionSerializer,
     CallLogSerializer,
@@ -35,15 +43,43 @@ class AIInterviewAuditAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="ai_interview_audit_retrieve",
+        summary="Retrieve AI interview audit",
+        description=(
+            "Returns AI interview calls, sessions, and call logs "
+            "for a job owned by the authenticated employer."
+        ),
+        responses={
+            200: inline_serializer(
+                name="AIInterviewAuditResponse",
+                fields={
+                    "job_id": serializers.IntegerField(),
+                    "job_title": serializers.CharField(),
+                    "total_calls": serializers.IntegerField(),
+                    "queued_calls": serializers.IntegerField(),
+                    "in_progress_calls": serializers.IntegerField(),
+                    "completed_calls": serializers.IntegerField(),
+                    "failed_calls": serializers.IntegerField(),
+                    "calls": serializers.ListField(
+                        child=serializers.JSONField()
+                    ),
+                },
+            ),
+            404: OpenApiResponse(
+                description="Job not found or not owned by this employer."
+            ),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
             Job,
             id=job_id,
-            employer__user=request.user
+            employer__user=request.user,
         )
 
         calls = AICall.objects.filter(
@@ -107,9 +143,33 @@ class AIAnswerEvaluationAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="ai_answer_evaluation_create",
+        summary="Evaluate an AI interview answer",
+        description=(
+            "Creates or updates an answer and evaluates it for a "
+            "question belonging to a job owned by the authenticated employer."
+        ),
+        request=inline_serializer(
+            name="AIAnswerEvaluationRequest",
+            fields={
+                "question_id": serializers.IntegerField(),
+                "answer": serializers.CharField(),
+            },
+        ),
+        responses={
+            201: AIAnswerEvaluationSerializer,
+            400: OpenApiResponse(
+                description="question_id and answer are required."
+            ),
+            404: OpenApiResponse(
+                description="Question not found or not accessible."
+            ),
+        },
+    )
     def post(self, request):
 
         question_id = request.data.get("question_id")
@@ -128,7 +188,7 @@ class AIAnswerEvaluationAPIView(APIView):
                 "session__call__application__job__employer__user"
             ),
             id=question_id,
-            session__call__application__job__employer__user=request.user
+            session__call__application__job__employer__user=request.user,
         )
 
         job = question.session.call.application.job
@@ -143,7 +203,7 @@ class AIAnswerEvaluationAPIView(APIView):
 
         job_question = get_object_or_404(
             job.ai_questions,
-            question_order=question.question_order
+            question_order=question.question_order,
         )
 
         keywords = job_question.question_template.follow_up_keywords
@@ -169,9 +229,23 @@ class AIAnswerEvaluationDetailAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="ai_answer_evaluation_detail_retrieve",
+        summary="Retrieve answer evaluation",
+        description=(
+            "Returns an evaluation for an answer belonging to a job "
+            "owned by the authenticated employer."
+        ),
+        responses={
+            200: AIAnswerEvaluationSerializer,
+            404: OpenApiResponse(
+                description="Answer or evaluation not found."
+            ),
+        },
+    )
     def get(self, request, answer_id):
 
         answer = get_object_or_404(
@@ -180,7 +254,7 @@ class AIAnswerEvaluationDetailAPIView(APIView):
                 "question__session__call__application__job__employer__user"
             ),
             id=answer_id,
-            question__session__call__application__job__employer__user=request.user
+            question__session__call__application__job__employer__user=request.user,
         )
 
         if not hasattr(answer, "evaluation"):
@@ -204,15 +278,37 @@ class AvailableSlotsAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="interview_available_slots_list",
+        summary="List available interview slots",
+        description=(
+            "Returns available scheduling slots for a job owned "
+            "by the authenticated employer."
+        ),
+        responses={
+            200: inline_serializer(
+                name="AvailableInterviewSlotResponse",
+                fields={
+                    "id": serializers.IntegerField(),
+                    "start_time": serializers.DateTimeField(),
+                    "end_time": serializers.DateTimeField(),
+                },
+                many=True,
+            ),
+            404: OpenApiResponse(
+                description="Job not found or not owned by this employer."
+            ),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
             Job,
             id=job_id,
-            employer__user=request.user
+            employer__user=request.user,
         )
 
         scheduling_engine = SchedulingEngine()
@@ -235,9 +331,44 @@ class InterviewScheduleAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="interview_schedule_create",
+        summary="Schedule an interview",
+        description=(
+            "Schedules an interview using an available slot "
+            "for a job owned by the authenticated employer."
+        ),
+        request=inline_serializer(
+            name="InterviewScheduleRequest",
+            fields={
+                "call_id": serializers.IntegerField(),
+                "slot_id": serializers.IntegerField(),
+            },
+        ),
+        responses={
+            201: inline_serializer(
+                name="InterviewScheduleResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "schedule_id": serializers.IntegerField(),
+                    "call_id": serializers.IntegerField(),
+                    "slot_id": serializers.IntegerField(),
+                    "scheduled_start": serializers.DateTimeField(),
+                    "scheduled_end": serializers.DateTimeField(),
+                    "status": serializers.CharField(),
+                },
+            ),
+            400: OpenApiResponse(
+                description="Missing fields, duplicate schedule, or scheduling error."
+            ),
+            404: OpenApiResponse(
+                description="Interview call or availability slot not found."
+            ),
+        },
+    )
     def post(self, request):
 
         call_id = request.data.get("call_id")
@@ -256,7 +387,7 @@ class InterviewScheduleAPIView(APIView):
                 "application__job__employer__user"
             ),
             id=call_id,
-            application__job__employer__user=request.user
+            application__job__employer__user=request.user,
         )
 
         if hasattr(call, "schedule"):
@@ -270,7 +401,7 @@ class InterviewScheduleAPIView(APIView):
         slot = get_object_or_404(
             AvailabilitySlot,
             id=slot_id,
-            job=call.application.job
+            job=call.application.job,
         )
 
         scheduling_engine = SchedulingEngine()
@@ -291,6 +422,7 @@ class InterviewScheduleAPIView(APIView):
         reminder_engine = ReminderEngine()
         reminder_engine.create_reminders(schedule)
         send_interview_confirmation.delay(schedule.id)
+
         return Response(
             {
                 "message": "Interview scheduled successfully.",
@@ -309,15 +441,42 @@ class InterviewReminderListAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsEmployer
+        IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="interview_reminders_list",
+        summary="List interview reminders",
+        description=(
+            "Returns reminder records for interviews associated "
+            "with a job owned by the authenticated employer."
+        ),
+        responses={
+            200: inline_serializer(
+                name="InterviewReminderListResponse",
+                fields={
+                    "job_id": serializers.IntegerField(),
+                    "job_title": serializers.CharField(),
+                    "total_reminders": serializers.IntegerField(),
+                    "pending_reminders": serializers.IntegerField(),
+                    "sent_reminders": serializers.IntegerField(),
+                    "failed_reminders": serializers.IntegerField(),
+                    "reminders": serializers.ListField(
+                        child=serializers.JSONField()
+                    ),
+                },
+            ),
+            404: OpenApiResponse(
+                description="Job not found or not owned by this employer."
+            ),
+        },
+    )
     def get(self, request, job_id):
 
         job = get_object_or_404(
             Job,
             id=job_id,
-            employer__user=request.user
+            employer__user=request.user,
         )
 
         reminders = ReminderLog.objects.filter(
@@ -369,6 +528,21 @@ class AICandidateReportAPIView(APIView):
         IsEmployer,
     ]
 
+    @extend_schema(
+        operation_id="ai_candidate_report_create",
+        summary="Generate candidate report",
+        description=(
+            "Generates an AI candidate report for an application "
+            "belonging to a job owned by the authenticated employer."
+        ),
+        request=None,
+        responses={
+            200: AICandidateReportSerializer,
+            404: OpenApiResponse(
+                description="Application not found or not owned by this employer."
+            ),
+        },
+    )
     def post(self, request, application_id):
 
         application = get_object_or_404(
@@ -389,6 +563,20 @@ class AICandidateReportAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        operation_id="ai_candidate_report_retrieve",
+        summary="Retrieve candidate report",
+        description=(
+            "Returns the existing AI candidate report for an application "
+            "belonging to a job owned by the authenticated employer."
+        ),
+        responses={
+            200: AICandidateReportSerializer,
+            404: OpenApiResponse(
+                description="Application or candidate report not found."
+            ),
+        },
+    )
     def get(self, request, application_id):
 
         application = get_object_or_404(

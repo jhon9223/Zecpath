@@ -1,8 +1,11 @@
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
+from rest_framework import status, generics, serializers
 from rest_framework.parsers import MultiPartParser, FormParser
+
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiTypes
 
 from accounts.models import User
 from accounts.permissions import IsAdmin, IsCandidate
@@ -16,7 +19,6 @@ from django.shortcuts import get_object_or_404
 import os
 
 # import the pagination class,and use it in the views where you want to paginate the results.,and set the pagination_class attribute to the ProfilePagination class.
-from rest_framework import generics
 from .pagination import ProfilePagination
 from .models import CandidateProfile
 from .serializers import CandidateProfileSerializer
@@ -27,9 +29,38 @@ from rest_framework.filters import SearchFilter
 from .utils import get_user_profile
 
 
+# Swagger documentation serializers
+class ProfileErrorResponseSerializer(serializers.Serializer):
+    error = serializers.CharField()
+
+
+class ProfileDeleteResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+
+class ResumeUploadResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    resume = serializers.CharField(allow_null=True)
+
+
 class MyProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Get my profile",
+        description=(
+            "Retrieve the authenticated user's candidate or employer profile."
+        ),
+        responses={
+            200: OpenApiResponse(
+                description="Candidate or employer profile details."
+            ),
+            404: OpenApiResponse(
+                response=ProfileErrorResponseSerializer,
+                description="Profile not found.",
+            ),
+        },
+    )
     def get(self, request):
 
         if request.user.role == User.CANDIDATE:
@@ -83,6 +114,25 @@ class MyProfileAPIView(APIView):
 class UpdateProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Update my profile",
+        description=(
+            "Partially update the authenticated candidate or employer profile."
+        ),
+        request=OpenApiTypes.OBJECT,
+        responses={
+            200: OpenApiResponse(
+                description="Updated candidate or employer profile details."
+            ),
+            400: OpenApiResponse(
+                description="Invalid profile data."
+            ),
+            404: OpenApiResponse(
+                response=ProfileErrorResponseSerializer,
+                description="Profile not found.",
+            ),
+        },
+    )
     def patch(self, request):
 
         if request.user.role == User.CANDIDATE:
@@ -123,6 +173,20 @@ class UpdateProfileAPIView(APIView):
 class DeleteProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Delete my profile",
+        description=(
+            "Soft-delete the authenticated candidate or employer profile."
+        ),
+        request=None,
+        responses={
+            200: ProfileDeleteResponseSerializer,
+            404: OpenApiResponse(
+                response=ProfileErrorResponseSerializer,
+                description="Profile not found.",
+            ),
+        },
+    )
     def delete(self, request):
 
         if request.user.role == User.CANDIDATE:
@@ -193,6 +257,30 @@ class ResumeUploadAPIView(APIView):
     permission_classes = [IsAuthenticated, IsCandidate]
     parser_classes = [MultiPartParser, FormParser]
 
+    @extend_schema(
+        summary="Upload candidate resume",
+        description=(
+            "Upload a PDF, DOC, or DOCX resume. "
+            "The maximum allowed file size is 2 MB. "
+            "An existing resume is replaced when a new one is uploaded."
+        ),
+        request={
+            "multipart/form-data": OpenApiTypes.OBJECT,
+        },
+        responses={
+            200: ResumeUploadResponseSerializer,
+            400: OpenApiResponse(
+                response=ProfileErrorResponseSerializer,
+                description="Missing resume, unsupported file type, or file too large.",
+            ),
+            403: OpenApiResponse(
+                description="Permission denied."
+            ),
+            404: OpenApiResponse(
+                description="Candidate profile not found."
+            ),
+        },
+    )
     def post(self, request):
 
         profile = get_object_or_404(

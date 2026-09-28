@@ -1,7 +1,8 @@
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
 
 from accounts.permissions import IsEmployer, IsCandidate, IsAdmin
 from rest_framework.permissions import IsAuthenticated
@@ -18,12 +19,34 @@ from .pagination import JobPagination
 from .filters import JobFilter
 from django.shortcuts import get_object_or_404
 from .models import Job, SavedJob
+
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiParameter,
+    OpenApiResponse,
+)
+
 # Create your views here.
+
+
+class JobStatusUpdateRequestSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=["ACTIVE", "INACTIVE"]
+    )
 
 
 class CreateJobAPIView(APIView):
     permission_classes = [IsAuthenticated, IsEmployer]
 
+    @extend_schema(
+        request=JobSerializer,
+        responses={
+            201: JobSerializer,
+            400: OpenApiResponse(description="Invalid job data"),
+        },
+        summary="Create a job",
+        description="Creates a job for the authenticated employer.",
+    )
     def post(self, request):
 
         employer = EmployerProfile.objects.get(
@@ -53,6 +76,17 @@ class CreateJobAPIView(APIView):
 class UpdateJobAPIView(APIView):
     permission_classes = [IsAuthenticated, IsEmployer]
 
+    @extend_schema(
+        request=JobSerializer,
+        responses={
+            200: JobSerializer,
+            400: OpenApiResponse(description="Invalid job data"),
+            403: OpenApiResponse(description="You cannot edit this job"),
+            404: OpenApiResponse(description="Job not found"),
+        },
+        summary="Update a job",
+        description="Partially updates a job owned by the authenticated employer.",
+    )
     def patch(self, request, job_id):
 
         try:
@@ -91,6 +125,16 @@ class UpdateJobAPIView(APIView):
 class JobStatusAPIView(APIView):
     permission_classes = [IsAuthenticated, IsEmployer]
 
+    @extend_schema(
+        request=JobStatusUpdateRequestSerializer,
+        responses={
+            200: OpenApiResponse(description="Job status updated"),
+            400: OpenApiResponse(description="Invalid status"),
+            403: OpenApiResponse(description="You cannot update this job"),
+            404: OpenApiResponse(description="Job not found"),
+        },
+        summary="Update job status",
+    )
     def patch(self, request, job_id):
 
         try:
@@ -124,6 +168,21 @@ class JobStatusAPIView(APIView):
         )
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="search",
+            description="Search job title, description, skills, or location.",
+            required=False,
+            type=str,
+        ),
+    ],
+    summary="List active jobs",
+    description=(
+        "Returns active jobs with pagination, filtering, and search. "
+        "Available filter parameters are defined by JobFilter."
+    ),
+)
 class JobListAPIView(generics.ListAPIView):
 
     serializer_class = JobSerializer
@@ -149,6 +208,10 @@ class JobListAPIView(generics.ListAPIView):
     ]  # ?location=Bangalore works because django-filter matches the query parameter name to the field name.?search=Python works because SearchFilter always looks for the search parameter and checks every field you've listed in search_fields.
 
 
+@extend_schema(
+    summary="List latest active jobs",
+    description="Returns up to 10 active jobs ordered by creation date.",
+)
 class LatestJobListAPIView(generics.ListAPIView):
     serializer_class = JobSerializer
 
@@ -157,6 +220,10 @@ class LatestJobListAPIView(generics.ListAPIView):
     ).select_related("employer").order_by("-created_at")[:10]
 
 
+@extend_schema(
+    summary="List featured active jobs",
+    description="Returns up to 5 active jobs ordered by creation date.",
+)
 class FeaturedJobListAPIView(generics.ListAPIView):
     serializer_class = JobSerializer
 
@@ -167,6 +234,9 @@ class FeaturedJobListAPIView(generics.ListAPIView):
 # not mentioned in day 19 task created my own...
 
 
+@extend_schema(
+    summary="List the authenticated employer's jobs",
+)
 class MyJobsAPIView(generics.ListAPIView):
 
     serializer_class = JobSerializer
@@ -180,6 +250,9 @@ class MyJobsAPIView(generics.ListAPIView):
 
     # Dynamic / depends on user, URL, permissions, etc.:
     def get_queryset(self):
+
+        if getattr(self, "swagger_fake_view", False):
+            return Job.objects.none()
 
         return Job.objects.filter(
             employer__user=self.request.user
@@ -195,6 +268,15 @@ class SaveJobAPIView(APIView):
         IsCandidate
     ]
 
+    @extend_schema(
+        request=None,
+        responses={
+            201: OpenApiResponse(description="Job saved successfully"),
+            400: OpenApiResponse(description="Job already saved"),
+            404: OpenApiResponse(description="Candidate or active job not found"),
+        },
+        summary="Save a job",
+    )
     def post(self, request, job_id):
 
         candidate = get_object_or_404(
@@ -226,6 +308,9 @@ class SaveJobAPIView(APIView):
         )
 
 
+@extend_schema(
+    summary="List the authenticated candidate's saved jobs",
+)
 class MySavedJobsAPIView(generics.ListAPIView):
 
     serializer_class = JobSerializer
@@ -237,6 +322,9 @@ class MySavedJobsAPIView(generics.ListAPIView):
 
     def get_queryset(self):
 
+        if getattr(self, "swagger_fake_view", False):
+            return Job.objects.none()
+
         return Job.objects.filter(
             saved_by__candidate__user=self.request.user,
             status=Job.ACTIVE
@@ -245,6 +333,10 @@ class MySavedJobsAPIView(generics.ListAPIView):
         ).order_by("-created_at")
 
 
+@extend_schema(
+    summary="List recommended jobs",
+    description="Returns active jobs whose skills match the candidate's skills.",
+)
 class RecommendedJobsAPIView(generics.ListAPIView):
 
     serializer_class = JobSerializer
@@ -255,6 +347,9 @@ class RecommendedJobsAPIView(generics.ListAPIView):
     ]
 
     def get_queryset(self):
+
+        if getattr(self, "swagger_fake_view", False):
+            return Job.objects.none()
 
         candidate = get_object_or_404(
             CandidateProfile,
@@ -301,6 +396,15 @@ class AdminManageJobAPIView(APIView):
         IsAdmin
     ]
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Job removed successfully"),
+            404: OpenApiResponse(description="Job not found"),
+        },
+        summary="Remove a job from active listings",
+        description="Sets the specified job's status to INACTIVE.",
+    )
     def patch(self, request, job_id):
 
         job = get_object_or_404(

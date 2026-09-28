@@ -1,6 +1,9 @@
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from accounts.permissions import IsAdmin
 from .services.billing_service import AdminBillingService
@@ -13,6 +16,11 @@ class AdminBillingTransactionsAPIView(APIView):
         IsAdmin,
     ]
 
+    @extend_schema(
+        summary="List admin billing transactions",
+        responses={200: OpenApiResponse(
+            description="Billing transactions retrieved successfully.")},
+    )
     def get(self, request):
         transactions = AdminBillingService.transactions()
 
@@ -41,6 +49,11 @@ class AdminSubscriptionHistoryAPIView(APIView):
         IsAdmin,
     ]
 
+    @extend_schema(
+        summary="List admin subscription history",
+        responses={200: OpenApiResponse(
+            description="Subscription history retrieved successfully.")},
+    )
     def get(self, request):
         subscriptions = AdminBillingService.subscriptions()
 
@@ -67,6 +80,11 @@ class AdminRevenueAPIView(APIView):
         IsAdmin,
     ]
 
+    @extend_schema(
+        summary="Retrieve admin revenue",
+        responses={200: OpenApiResponse(
+            description="Revenue details retrieved successfully.")},
+    )
     def get(self, request):
         return Response(
             AdminBillingService.revenue()
@@ -80,6 +98,11 @@ class AdminRefundsAPIView(APIView):
         IsAdmin,
     ]
 
+    @extend_schema(
+        summary="List admin refunds",
+        responses={200: OpenApiResponse(
+            description="Refunds retrieved successfully.")},
+    )
     def get(self, request):
         refunds = AdminBillingService.refunds()
 
@@ -108,6 +131,11 @@ class AdminPaymentFailuresAPIView(APIView):
         IsAdmin,
     ]
 
+    @extend_schema(
+        summary="List admin payment failures",
+        responses={200: OpenApiResponse(
+            description="Payment failures retrieved successfully.")},
+    )
     def get(self, request):
         failures = AdminBillingService.failures()
 
