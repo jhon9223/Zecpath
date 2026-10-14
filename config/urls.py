@@ -22,7 +22,7 @@ urlpatterns = [
     path("api/payments/", include("payments.urls")),
     path("api/subscriptions/", include("subscriptions.urls")),
     path("api/admin/billing/", include("subscriptions.admin_billing_urls"),),
-
+    path("api/chat/", include("chat.urls")),
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
@@ -35,6 +35,7 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name='schema'),
         name='redoc',
     ),
+
 ]
 
 if settings.DEBUG:

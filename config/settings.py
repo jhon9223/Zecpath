@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "audit",
     "subscriptions",
     "payments",
+    "chat",
     "storages",
     'drf_spectacular',
 ]
