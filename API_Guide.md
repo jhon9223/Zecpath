@@ -1,164 +1,270 @@
-
 # ZecPath API Guide
 
 ## 1. Overview
 
-ZecPath is an AI-powered recruitment platform. Its backend exposes APIs for authentication, user profiles, jobs, applications, interviews, subscriptions, payments, and other recruitment-related functionality.
+ZecPath is an AI-powered recruitment platform that supports candidate and employer workflows, job management, applicant tracking, AI-based screening, interview management, subscriptions, payments, and recruiter-candidate communication.
 
-This guide explains how to access the API documentation, authenticate requests, and test endpoints.
+This document explains how to start the backend, authenticate API requests, explore available endpoints, and validate the API documentation.
 
-## 2. API Documentation
+**Documentation source:** Django URL configuration and the generated OpenAPI schema. Refer to the running Swagger UI and actual serializers/views for exact request fields, response structures, and permission requirements.
 
-ZecPath uses drf-spectacular to generate an OpenAPI schema.
+## 2. API Documentation Interfaces
 
-When running the Django development server locally, use these URLs:
+When running the Django development server locally, use:
 
-- **Swagger UI:** http://127.0.0.1:8000/api/docs/
-- **ReDoc:** http://127.0.0.1:8000/api/redoc/
-- **OpenAPI schema:** http://127.0.0.1:8000/api/schema/
+| Resource | URL |
+|---|---|
+| Swagger UI | http://127.0.0.1:8000/api/docs/ |
+| ReDoc | http://127.0.0.1:8000/api/redoc/ |
+| OpenAPI schema | http://127.0.0.1:8000/api/schema/ |
 
-Swagger UI lets developers explore endpoints, view request and response schemas, and execute API requests interactively.
+- **Swagger UI:** Explore endpoints and execute API requests interactively.
+- **ReDoc:** Browse the generated API reference in a documentation-oriented layout.
+- **OpenAPI schema:** Machine-readable API specification for compatible tools.
 
-ReDoc provides an alternative documentation interface. The OpenAPI schema is the machine-readable API specification.
+The schema describes documented operations. Always verify business rules and implementation-specific behavior against the actual backend.
 
-## 3. Starting the Development Server
+## 3. Development Setup
 
-Activate the project's virtual environment, navigate to the project directory, and run:
+Run the following commands in PowerShell from the project root.
+
+### 3.1 Activate the virtual environment
+
+If the project's virtual environment is named `env`:
+
+```powershell
+.\env\Scripts\Activate.ps1
+```
+
+If it is already activated, continue to the next step.
+
+### 3.2 Install dependencies
+
+If `requirements.txt` is maintained for the current project version:
+
+```powershell
+pip install -r requirements.txt
+```
+
+### 3.3 Configure environment variables
+
+Configure the required values in the project's local `.env` file according to the settings and integrations being used.
+
+Depending on the enabled functionality, configuration may include database, JWT, storage, Celery/Redis, AI-provider, and payment-provider settings.
+
+- Use valid local or development credentials.
+- Do not commit `.env` files or production secrets.
+- Consult the project settings and dependency documentation for the exact required variables.
+
+### 3.4 Apply migrations
+
+```powershell
+python manage.py migrate
+```
+
+### 3.5 Start the development server
 
 ```powershell
 python manage.py runserver
 ```
 
-Open the Swagger UI URL in your browser.
+Open Swagger UI at http://127.0.0.1:8000/api/docs/.
 
-## 4. Authentication
+The commands above describe a local development workflow. Production deployment requires the appropriate production environment and service configuration.
+
+## 4. Authentication and Authorization
 
 ZecPath uses JWT authentication for protected API endpoints.
 
-The typical authentication workflow is:
+### 4.1 Typical authentication workflow
 
-1. Register an account using the signup endpoint.
+1. Register using the signup endpoint.
 2. Log in using the login endpoint.
-3. Obtain the access and refresh tokens returned by the login API.
-4. Use the access token to access protected endpoints.
-5. Obtain a new access token using the refresh endpoint when appropriate, according to the configured token lifetime and refresh policy.
+3. Obtain the tokens returned by the login API.
+4. Send the access token with requests to protected endpoints.
+5. Use the refresh endpoint when an access token needs to be renewed, subject to the configured JWT policy.
+6. Use the logout endpoint according to the application's token-handling implementation.
 
-For HTTP Bearer authentication, protected requests use this header:
+### 4.2 Authorization header
+
+For endpoints that use Bearer JWT authentication, send:
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-In Swagger UI, use the **Authorize** button and follow the authentication scheme displayed in its dialog.
+In Swagger UI, click **Authorize** and follow the authentication scheme displayed.
 
-Never commit real passwords, access tokens, or refresh tokens to version control.
+### 4.3 Authentication endpoints
 
-## 5. Authentication Endpoints
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/accounts/signup/` | Register a user |
+| POST | `/api/accounts/login/` | Authenticate and obtain tokens |
+| POST | `/api/accounts/refresh/` | Refresh authentication tokens |
+| POST | `/api/accounts/logout/` | Log out according to the configured token policy |
+| GET | `/api/accounts/profile/` | Access the account profile endpoint |
 
-### 5.1 Signup
+The precise fields, response bodies, and authentication requirements should be checked in Swagger and the corresponding serializers/views.
 
-**Method:** POST
+### 4.4 Security notes
 
-**Endpoint:** `/api/accounts/signup/`
+- Never commit real passwords, JWTs, API keys, or payment credentials.
+- Use test accounts and test data during development.
+- Do not assume that a user can access an endpoint merely because they are authenticated.
+- Verify role-based permissions and resource ownership for administrative, employer, and candidate operations.
 
-**Purpose:** Register a new user.
+## 5. API Endpoint Reference
 
-Example request:
+The following inventory reflects the endpoint paths and HTTP methods identified in the generated project schema. It is an endpoint index, not a substitute for the exact schemas and business rules shown in Swagger.
 
-```json
-{
-    "username": "john",
-    "email": "john@example.com",
-    "password": "Use-A-Strong-Test-Password",
-    "role": "CANDIDATE"
-}
-```
+### 5.1 Accounts and dashboards
 
-Use the role values permitted by the application's registration logic. Do not assume that public registration permits administrator accounts.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/accounts/signup/` | User registration |
+| POST | `/api/accounts/login/` | User login |
+| POST | `/api/accounts/logout/` | Logout |
+| POST | `/api/accounts/refresh/` | Refresh JWT |
+| GET | `/api/accounts/profile/` | Account profile |
+| GET | `/api/accounts/candidate/dashboard/` | Candidate dashboard |
+| GET | `/api/accounts/candidate-dashboard/` | Candidate dashboard legacy route |
+| GET | `/api/accounts/employer/dashboard/` | Employer dashboard |
+| GET | `/api/accounts/admin/dashboard/` | Admin dashboard |
+| GET | `/api/accounts/admin/stats/` | Admin platform statistics |
+| GET | `/api/accounts/admin/audit-logs/` | Administrative audit-log access |
+| PATCH | `/api/accounts/admin/employers/{user_id}/approve/` | Employer approval |
+| PATCH | `/api/accounts/admin/users/{user_id}/block/` | User blocking |
 
-**Successful response:** HTTP 201 Created
+Administrative endpoints should be used only by authorized administrators. Confirm the permitted roles and request requirements in the implementation.
 
-```json
-{
-    "message": "User created successfully."
-}
-```
+### 5.2 Jobs
 
-### 5.2 Login
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/jobs/` | List or browse jobs |
+| GET | `/api/jobs/featured/` | Retrieve featured jobs |
+| GET | `/api/jobs/latest/` | Retrieve latest jobs |
+| GET | `/api/jobs/recommended/` | Retrieve recommended jobs |
+| GET | `/api/jobs/my-jobs/` | Retrieve the authenticated employer's jobs |
+| GET | `/api/jobs/my-saved-jobs/` | Retrieve saved jobs |
+| POST | `/api/jobs/create/` | Create a job |
+| PATCH | `/api/jobs/{job_id}/update/` | Update a job |
+| PATCH | `/api/jobs/{job_id}/status/` | Change job status |
+| POST | `/api/jobs/{job_id}/save/` | Save a job |
+| PATCH | `/api/jobs/admin/jobs/{job_id}/remove/` | Administrative job removal action |
 
-**Method:** POST
+Job creation, updates, status changes, and administrative operations may have role or ownership restrictions. Use the actual endpoint documentation to verify them.
 
-**Endpoint:** `/api/accounts/login/`
+### 5.3 Applications and Applicant Tracking System (ATS)
 
-**Purpose:** Authenticate a user and obtain JWT tokens.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/applications/{job_id}/apply/` | Apply for a job |
+| GET | `/api/applications/my-applications/` | Retrieve the candidate's applications |
+| GET | `/api/applications/job/{job_id}/applications/` | Retrieve applications for a job |
+| PATCH | `/api/applications/{application_id}/status/` | Update application status |
+| GET | `/api/applications/{application_id}/ats-score/` | Retrieve application ATS score |
+| GET | `/api/applications/job/{job_id}/ranked-candidates/` | Retrieve ranked candidates |
+| PATCH | `/api/applications/job/{job_id}/auto-process/` | Trigger or configure job-level auto-processing |
+| PATCH | `/api/applications/{application_id}/auto-process/` | Trigger or configure application-level auto-processing |
+| GET | `/api/applications/analytics/` | Application analytics |
+| GET | `/api/applications/job/{job_id}/analytics/` | Job-level application analytics |
+| GET | `/api/applications/jobs/{job_id}/recruiter-analytics/` | Recruiter job analytics |
+| GET | `/api/applications/premium-analytics/` | Premium analytics |
+| GET | `/api/applications/jobs/{job_id}/premium-ranking/` | Premium candidate ranking |
 
-Use the request body displayed in Swagger UI. The exact request fields and response schema are defined by the implementation.
+ATS scoring and ranking should be interpreted according to the project's implemented scoring logic and thresholds. Verify the exact response fields and status-transition rules in the corresponding API implementation.
 
-### 5.3 Refresh Token
+### 5.4 AI interviews
 
-**Method:** POST
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/ai-interviews/schedule/` | Schedule an interview |
+| POST | `/api/ai-interviews/answers/evaluate/` | Evaluate an interview answer |
+| GET | `/api/ai-interviews/answers/{answer_id}/evaluation/` | Retrieve an answer evaluation |
+| GET | `/api/ai-interviews/applications/{application_id}/report/` | Retrieve an application interview report |
+| POST | `/api/ai-interviews/applications/{application_id}/report/` | Create or process an interview report |
+| GET | `/api/ai-interviews/jobs/{job_id}/audit/` | Retrieve job interview audit information |
+| GET | `/api/ai-interviews/jobs/{job_id}/reminders/` | Retrieve interview reminders |
+| GET | `/api/ai-interviews/jobs/{job_id}/slots/` | Retrieve interview slots |
 
-**Endpoint:** `/api/accounts/refresh/`
+Interview scheduling, evaluation, report generation, and reminder behavior depend on the request fields and business logic implemented by the backend.
 
-**Purpose:** Request a new access token using a refresh token, subject to the application's JWT configuration.
+### 5.5 Recruiter-candidate chat
 
-Consult Swagger UI for the exact request body and response format.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/chat/conversations/` | List the authenticated participant's conversations |
+| POST | `/api/chat/applications/{application_id}/start/` | Start or retrieve a conversation for an application |
+| GET | `/api/chat/conversations/{conversation_id}/messages/` | List messages in a conversation |
+| POST | `/api/chat/conversations/{conversation_id}/messages/` | Send a message |
 
-### 5.4 Logout
+#### Chat workflow and access rules
 
-**Method:** POST
+- Conversations are associated with a job application.
+- A conversation is created or retrieved through the application-specific start endpoint.
+- Candidates can initiate a conversation only when the application is shortlisted.
+- Recruiters can initiate conversations for applications associated with their own jobs, subject to the implemented authorization checks.
+- Once a recruiter has initiated a conversation, the candidate can reply through that conversation even if the application is not shortlisted.
+- Conversation and message access is restricted to authorized participants.
+- The start endpoint can return HTTP `201 Created` for a new conversation or HTTP `200 OK` when retrieving an existing conversation.
 
-**Endpoint:** `/api/accounts/logout/`
+For sending a message, use the request body displayed in Swagger UI. The message serializer defines the accepted content field and the server-controlled fields.
 
-**Purpose:** Log out a user according to the application's configured logout and token-handling behavior.
+### 5.6 Candidate profiles and resumes
 
-Consult Swagger UI for the request requirements and expected response.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/profiles/me/` | Retrieve the current profile |
+| GET | `/api/profiles/candidates/` | Retrieve candidate profiles |
+| PATCH | `/api/profiles/update/` | Update a profile |
+| DELETE | `/api/profiles/delete/` | Delete a profile |
+| POST | `/api/profiles/upload-resume/` | Upload a resume |
+| POST | `/api/resumes/parse/` | Parse a resume |
 
-## 6. Exploring Other API Endpoints
+Resume upload and parsing may require multipart file data or other specific input formats. Check the endpoint's documented request schema before submitting a request. Access to candidate records may be restricted by role and ownership.
 
-Swagger UI organizes the available endpoints by tags and displays their HTTP methods, paths, parameters, request bodies, authentication requirements, and documented responses.
+### 5.7 Audit logs
 
-Examples of endpoints include:
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/audit/logs/` | Retrieve audit logs |
+| GET | `/api/accounts/admin/audit-logs/` | Access administrative audit logs |
 
-- `GET /api/accounts/profile/` — retrieve the authenticated user's profile.
-- `GET /api/accounts/candidate/dashboard/` — retrieve candidate dashboard statistics.
-- `GET /api/accounts/employer/dashboard/` — retrieve employer dashboard information.
+Audit information may contain sensitive platform activity. Use these endpoints only with the permissions provided by the implementation.
 
-Use Swagger UI as the authoritative interactive reference for the remaining endpoints and their current schemas.
+### 5.8 Payments
 
-## 7. Testing an Endpoint with Swagger UI
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/payments/orders/` | Create a payment order |
+| POST | `/api/payments/verify/` | Verify a payment |
+| POST | `/api/payments/capture/` | Capture a payment |
+| POST | `/api/payments/webhook/` | Receive payment-provider webhook events |
 
-1. Start the Django development server.
-2. Open `/api/docs/`.
-3. Expand the endpoint you want to test.
-4. Click **Try it out**.
-5. Enter the required request data using the displayed schema.
-6. Click **Execute**.
-7. Inspect the HTTP status code, response body, and response headers.
-8. For protected endpoints, authorize the request using a valid access token.
+Payment operations must follow the provider's implemented verification and security requirements. Never treat a client-provided payment status as authoritative without the server-side checks implemented by the application.
 
-A successful response indicates that the particular request worked under the conditions tested. It does not prove that every endpoint or permission rule works correctly.
+### 5.9 Subscriptions and administrative billing
 
-Use test accounts and test data. Avoid sending real credentials or tokens to untrusted environments.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/subscriptions/current/` | Retrieve the current subscription |
+| GET | `/api/admin/billing/transactions/` | Retrieve billing transactions |
+| GET | `/api/admin/billing/subscriptions/` | Retrieve subscription records |
+| GET | `/api/admin/billing/revenue/` | Retrieve revenue information |
+| GET | `/api/admin/billing/refunds/` | Retrieve refund information |
+| GET | `/api/admin/billing/failures/` | Retrieve payment failures |
 
-## 8. Schema Validation
+Administrative billing endpoints should be accessed only by appropriately authorized users.
 
-Run these commands from the project directory:
+## 6. Common HTTP Methods
 
-```powershell
-python manage.py check
-python manage.py spectacular --file schema.yml --validate
-```
+| Method | Typical purpose |
+|---|---|
+| GET | Retrieve data |
+| POST | Create a resource or initiate an operation |
+| PATCH | Partially update a resource or change its state |
+| DELETE | Delete a resource |
 
-The Django system check verifies project configuration. The schema validation command generates the OpenAPI specification and reports schema warnings or errors.
-
-Review any warnings or errors before delivering documentation changes.
-
-## 9. Developer Notes
-
-- Keep API schemas and documentation aligned with the actual implementation.
-- Document authentication requirements and relevant request and response formats.
-- Use unique operation IDs for documented endpoints.
-- Never commit secrets, passwords, or real JWT tokens.
-- Re-run schema validation after modifying API documentation.
-- Use the project's existing Git workflow to review and commit changes.
+The meaning of a specific operation is

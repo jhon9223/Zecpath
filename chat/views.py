@@ -1,4 +1,3 @@
-
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
@@ -6,6 +5,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from accounts.models import User
 from applications.models import JobApplication
@@ -31,6 +32,10 @@ def get_user_conversations(user):
 class ConversationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="List chat conversations",
+        responses=ConversationSerializer(many=True),
+    )
     def get(self, request):
         if request.user.role not in [User.CANDIDATE, User.EMPLOYER]:
             return Response(
@@ -54,6 +59,14 @@ class ConversationListAPIView(APIView):
 class StartConversationAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Start or retrieve a conversation",
+        request=None,
+        responses={
+            200: ConversationSerializer,
+            201: ConversationSerializer,
+        },
+    )
     @transaction.atomic
     def post(self, request, application_id):
         if request.user.role not in [User.CANDIDATE, User.EMPLOYER]:
@@ -132,6 +145,17 @@ class StartConversationAPIView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="List conversation messages",
+        responses=MessageSerializer(many=True),
+    ),
+    post=extend_schema(
+        summary="Send a conversation message",
+        request=MessageSerializer,
+        responses={201: MessageSerializer},
+    ),
+)
 class MessageListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
